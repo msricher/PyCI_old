@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include <iostream>
 #include <pyci.h>
 
 
@@ -276,6 +277,32 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
     }
 }
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
+void print_array(double *rdm2, int nbasis) {
+    for (int i = 0; i < nbasis; i++)
+    {
+        for(int j = 0 ; j < nbasis; j++)
+        {
+            for(int k = 0; k < nbasis; k++)
+            {
+                for(int l = 0; l < nbasis; l++)
+                {
+                    int index = nbasis * nbasis * nbasis * i + nbasis * nbasis * j + nbasis * k + l;
+                    py::print(i, j, k, l, rdm2[index]);
+                }
+            }
+            py::print("\n");
+        }
+    }
+}
+
+int indices_to_index(int i, int j, int k, int l, int nbasis)
+{
+    return i * nbasis * nbasis * nbasis + j * nbasis * nbasis + k * nbasis + l;
+}
+
 
 void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *rdm2) const {
     // prepare working vectors
@@ -298,6 +325,10 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
     int_t n2 = n1 * n1;
     int_t n3 = n1 * n2;
     double val1, val2;
+
+    py::print("Number of occupation in C", nocc);
+    py::print("Number of Virtual in C", nvir);
+
     for (int_t idet = 0; idet < ndet; ++idet) {
         // fill working vectors
         rdet = &dets[idet * nword];
@@ -316,7 +347,12 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
                 kk = occs[k];
                 koffset = ioffset + n2 * kk;
                 //rdm2(ii, kk, ii, kk) += val1;
-                rdm2[koffset + ii * n1 + kk] += val1;
+                //rdm2[koffset + ii * n1 + kk] += val1;
+                py::print(indices_to_index(ii, kk, ii, kk, nbasis));
+                py::print(koffset + ii * n1 + kk);
+                py::print("\n");
+                int index = indices_to_index(ii, kk, ii, kk, nbasis);
+                rdm2[index] += val1;
                 //rdm2(ii, kk, kk, ii) -= val1;
                 rdm2[koffset + kk * n1 + ii] -= val1;
             }
@@ -334,7 +370,6 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
                     rdm1[ii * n1 + jj] += val2;
                     for (k = 0; k < nocc; ++k) {
                         kk = occs[k];
-                        koffset = ioffset + n2 * kk;
                         //rdm2(ii, kk, jj, kk) += val2;
                         rdm2[koffset + jj * n1 + kk] += val2;
                         //rdm2(ii, kk, kk, jj) -= val2;
