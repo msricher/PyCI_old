@@ -103,13 +103,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
     double val1, val2;
 
 
-    // ALI ADDED THESE CONSTANTS
-    //double permutation_1rdm = factorial(nocc_up + nocc_dn - 1.0);
-    double permutation_1rdm = 1.0;
-    // This number is needed because all of the various ways of permutating the parts that are going to be traced out.,
-    //double permutation_2rdm_aaaa_bbbb = factorial(nocc_up - 2 + nocc_dn);
-    double permutation_2rdm_aaaa_bbbb = 1.0;
-
     for (int_t idet = 0; idet < ndet; ++idet) {
         // fill working vectors
         rdet_up = &dets[idet * nword2];
@@ -128,19 +121,19 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
             ioffset = n3 * ii;
             // compute 0-0 terms
             //aa(ii, ii) += val1;
-            aa[(n1 + 1) * ii] += val1 * permutation_1rdm;
+            aa[(n1 + 1) * ii] += val1;
             for (k = i + 1; k < nocc_up; ++k) {
                 kk = occs_up[k];
                 koffset = ioffset + n2 * kk;
                 //aaaa(ii, kk, ii, kk) += val1;
-                aaaa[koffset + ii * n1 + kk] += val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[koffset + ii * n1 + kk] += val1;
                 //aaaa(ii, kk, kk, ii) -= val1;
-                aaaa[koffset + kk * n1 + ii] -= val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[koffset + kk * n1 + ii] -= val1;
 
                 // TODO: Double check the indices work.
-                aaaa[kk * n3 + ii * n2  + ii * n1 + kk] -= val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[kk * n3 + ii * n2  + ii * n1 + kk] -= val1;
                 //rdm2(ii, kk, kk, ii) -= val1;
-                aaaa[kk * n3 + ii * n2 + kk * n1 + ii] += val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[kk * n3 + ii * n2 + kk * n1 + ii] += val1;
             }
             for (k = 0; k < nocc_dn; ++k) {
                 kk = occs_dn[k];
@@ -163,35 +156,35 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                     // compute 1-0 terms
                     val2 = coeffs[idet] * coeffs[jdet] * sign_up;
                     //aa(ii, jj) += val2;
-                    aa[ii * n1 + jj] += val2 * permutation_1rdm;
-                    aa[jj * n1 + ii] += val2 * permutation_1rdm;
+                    aa[ii * n1 + jj] += val2;
+                    aa[jj * n1 + ii] += val2;
                     for (k = 0; k < nocc_up; ++k) {
                         if (i != k)
                         {
                             kk = occs_up[k];
                             koffset = ioffset + n2 * kk;
                             //aaaa(ii, kk, jj, kk) += val2;
-                            aaaa[koffset + jj * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[koffset + jj * n1 + kk] += val2;
                             //aaaa(ii, kk, kk, jj) -= val2;
-                            aaaa[koffset + kk * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[koffset + kk * n1 + jj] -= val2;
 
                             // aaaa(kk, ii, kk, jj)
-                            aaaa[kk * n3 + ii * n2 + kk * n1 + jj] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[kk * n3 + ii * n2 + kk * n1 + jj] += val2;
                             // aaaa(kk, ii, jj, kk)
-                            aaaa[kk * n3 + ii * n2 + jj * n1 + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[kk * n3 + ii * n2 + jj * n1 + kk] -= val2;
 
 
                             // Switch Particles
                             //aaaa(jj, kk, ii, kk)
-                            aaaa[n3 * jj + n2 * kk + n1 * ii + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * jj + n2 * kk + n1 * ii + kk] += val2;
                             //aaaa(jj, kk, kk, ii)
-                            aaaa[n3 * jj + n2 * kk + n1 * kk + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * jj + n2 * kk + n1 * kk + ii] -= val2;
 
                             //Switch Above
                             //aaaa(kk, jj, ii, kk)
-                            aaaa[n3 * kk + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * kk + n2 * jj + n1 * ii + kk] -= val2;
                             //aaaa(kk, jj, kk, ii)
-                            aaaa[n3 * kk + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * kk + n2 * jj + n1 * kk + ii] += val2;
 
                         }
                     }
@@ -252,25 +245,25 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                                  * phase_double_det(nword, ii, kk, jj, ll, rdet_up);
 
                             //aaaa(ii, kk, jj, ll) += val2;
-                            aaaa[koffset + jj * n1 + ll] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[koffset + jj * n1 + ll] += val2;
                             //aaaa(ii, kk, ll, jj) -= val2;
-                            aaaa[koffset + ll * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[koffset + ll * n1 + jj] -= val2;
 
                             //aaaa(kk, ii, jj, ll)
-                            aaaa[n3 * kk + n2 * ii + n1 * jj + ll] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * kk + n2 * ii + n1 * jj + ll] -= val2;
                             //aaaa(kk, ii, ll, jj)
-                            aaaa[n3 * kk + n2 * ii + n1 * ll + jj] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * kk + n2 * ii + n1 * ll + jj] += val2;
 
 
                            // ALI: I've added this may have to remove it.
                              //aaaa(jj, ll, ii, kk) += val2;
-                            aaaa[jj * n3 + ll * n2 + ii * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[jj * n3 + ll * n2 + ii * n1 + kk] += val2;
                             //aaaa(jj, ll, kk, ii)
-                            aaaa[jj * n3 + ll * n2 + kk * n1 + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[jj * n3 + ll * n2 + kk * n1 + ii] -= val2;
                             //aaaa(ll, jj, ii, kk) -= val2;
-                            aaaa[n3 * ll + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * ll + n2 * jj + n1 * ii + kk] -= val2;
                             //aaaa(ll, jj, kk, ii) += val2;
-                            aaaa[n3 * ll + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
+                            aaaa[n3 * ll + n2 * jj + n1 * kk + ii] += val2;
 
                         }
                         excite_det(ll, kk, det_up);
@@ -293,20 +286,20 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
             ioffset = n3 * ii;
             // compute 0-0 terms
             //bb(ii, ii) += val1;
-            bb[(n1 + 1) * ii] += val1 * permutation_1rdm;
+            bb[(n1 + 1) * ii] += val1;
             for (k = i + 1; k < nocc_dn; ++k) {
                 kk = occs_dn[k];
                 koffset = ioffset + n2 * kk;
 
                 //bbbb(ii, kk, ii, kk) += val1;
-                bbbb[koffset + ii * n1 + kk] += val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[koffset + ii * n1 + kk] += val1;
                 //bbbb(ii, kk, kk, ii) -= val1;
-                bbbb[koffset + kk * n1 + ii] -= val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[koffset + kk * n1 + ii] -= val1;
 
                 // TODO: Double check the indices work.
-                bbbb[kk * n3 +  ii * n2 + ii * n1 + kk] -= val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[kk * n3 +  ii * n2 + ii * n1 + kk] -= val1;
                 //rdm2(ii, kk, kk, ii) -= val1;
-                bbbb[kk * n3 + ii * n2 + kk * n1 + ii] += val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[kk * n3 + ii * n2 + kk * n1 + ii] += val1;
             }
 
 
@@ -324,8 +317,8 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                     val2 = coeffs[idet] * coeffs[jdet]
                          * phase_single_det(nword, ii, jj, rdet_dn);
                     //bb(ii, jj) += val2;
-                    bb[ii * n1 + jj] += val2 * permutation_1rdm;
-                    bb[jj * n1 + ii] += val2 * permutation_1rdm;
+                    bb[ii * n1 + jj] += val2;
+                    bb[jj * n1 + ii] += val2;
                     for (k = 0; k < nocc_up; ++k) {
                         kk = occs_up[k];
                         //abab(ii, kk, jj, kk) += val2;
@@ -346,27 +339,27 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
 
                             koffset = ioffset + n2 * kk;
                             //bbbb(ii, kk, jj, kk) += val2;
-                            bbbb[koffset + jj * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[koffset + jj * n1 + kk] += val2;
                             //bbbb(ii, kk, kk, jj) -= val2;
-                            bbbb[koffset + kk * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[koffset + kk * n1 + jj] -= val2;
 
                             // bbbb(kk, ii, kk, jj)
-                            bbbb[kk * n3 + ii * n2 + kk * n1 + jj] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[kk * n3 + ii * n2 + kk * n1 + jj] += val2;
                             // bbbb(kk, ii, jj, kk)
-                            bbbb[kk * n3 + ii * n2 + jj * n1 + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[kk * n3 + ii * n2 + jj * n1 + kk] -= val2;
 
 
                             // Switch Particles
                             //bbbb(jj, kk, ii, kk)
-                            bbbb[n3 * jj + n2 * kk + n1 * ii + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * jj + n2 * kk + n1 * ii + kk] += val2;
                             //bbbb(jj, kk, kk, ii)
-                            bbbb[n3 * jj + n2 * kk + n1 * kk + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * jj + n2 * kk + n1 * kk + ii] -= val2;
 
                             //Switch Above
                             //bbbb(kk, jj, ii, kk)
-                            bbbb[n3 * kk + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * kk + n2 * jj + n1 * ii + kk] -= val2;
                             //bbbb(kk, jj, kk, ii)
-                            bbbb[n3 * kk + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * kk + n2 * jj + n1 * kk + ii] += val2;
 
                         }
 
@@ -392,26 +385,26 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                             val2 = coeffs[idet] * coeffs[jdet]
                                      * phase_double_det(nword, ii, kk, jj, ll, rdet_dn);
                             //bbbb(ii, kk, jj, ll) += val2;
-                            bbbb[koffset + jj * n1 + ll] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[koffset + jj * n1 + ll] += val2;
                             //bbbb(ii, kk, ll, jj) -= val2;
-                            bbbb[koffset + ll * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[koffset + ll * n1 + jj] -= val2;
 
                             // ALI: I've added this may have to remove it.
 
                             //bbbb(kk, ii, jj, ll)
-                            bbbb[n3 * kk + n2 * ii + n1 * jj + ll] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * kk + n2 * ii + n1 * jj + ll] -= val2;
                             //bbbb(kk, ii, ll, jj)
-                            bbbb[n3 * kk + n2 * ii + n1 * ll + jj] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * kk + n2 * ii + n1 * ll + jj] += val2;
 
                              //bbbb(jj, ll, ii, kk) += val2;
-                            bbbb[jj * n3 + ll * n2 + ii * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[jj * n3 + ll * n2 + ii * n1 + kk] += val2;
                             //bbbb(ll, jj, ii, kk) -= val2;
-                            bbbb[n3 * ll + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * ll + n2 * jj + n1 * ii + kk] -= val2;
 
                             //bbbb(jj, ll, kk, ii)x`
-                            bbbb[jj * n3 + ll * n2 + kk * n1 + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[jj * n3 + ll * n2 + kk * n1 + ii] -= val2;
                             //bbbb(ll, jj, kk, ii)
-                            bbbb[n3 * ll + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
+                            bbbb[n3 * ll + n2 * jj + n1 * kk + ii] += val2;
                         }
                         excite_det(ll, kk, det_dn);
                     }
