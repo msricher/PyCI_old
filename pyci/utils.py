@@ -279,8 +279,10 @@ def make_rdms(d1: np.ndarray, d2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         bb += d1[1]   #+bb
         aaaa += d2[0] #+aaaa
         bbbb += d2[1] #+bbbb
+
         abab += d2[2] #+abab
-        baba += d2[2] #+abab
-        abba -= d2[2] #-abab
-        baab -= d2[2] #-abab
+        baba += np.swapaxes(np.swapaxes(d2[2], 0, 1), 2, 3) #+abab
+        abba -= np.swapaxes(d2[2], 2, 3) #-abab
+        baab -= np.swapaxes(d2[2], 0, 1) #-abab
+
     return rdm1, rdm2
