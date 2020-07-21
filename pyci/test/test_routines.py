@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with PyCI. If not, see <http://www.gnu.org/licenses/>.
 
-from nose.tools import assert_raises
+import itertools
 
 import numpy as np
 import numpy.testing as npt
@@ -23,7 +23,7 @@ from scipy.special import comb
 import pyci
 from pyci.test import datafile
 
-import itertools
+
 def parity2(p):
     return sum(
         1 for (x,px) in enumerate(p)
@@ -86,41 +86,6 @@ class TestRoutines:
         assert y.shape[0] == op.shape[0]
 
     def run_compute_rdms(self, filename, wfn_type, occs, energy):
-        def true_two_rdm_two_spin_up_two_down(wf, coeff):
-            r""" Get the true rdm2 from straight brute force calculation by going through
-            all slater determinants for each row/column."""
-            true = np.zeros((wf.nbasis * 2, wf.nbasis * 2, wf.nbasis * 2, wf.nbasis * 2))
-            true_onedm = np.zeros((wf.nbasis * 2, wf.nbasis * 2))
-            # Go Through Rows.
-            for i, occ_dual in enumerate(wf.to_occ_array()):
-                dspin_up, dspin_dn = occ_dual[0], wfn.nbasis + occ_dual[1]
-                concatenate = np.hstack((dspin_up, dspin_dn))
-                permutate = itertools.permutations(list(concatenate))
-                print(i)
-                print("Start concatenate", concatenate)
-                for p in permutate:
-                    p = np.array(p)
-                    sign_p = parity(p)
-                    # Go Through Columns.
-                    for j, occ in enumerate(wf.to_occ_array()):
-                        spin_up, spin_dn = occ[0], wfn.nbasis + occ[1]
-                        concatenate_row = np.hstack((spin_up, spin_dn))
-                        permutate2 = itertools.permutations(list(concatenate_row))
-
-                        for d in permutate2:
-                            d = np.array(d)
-
-                            if np.all(np.abs(p[2:] - d[2:]) < 1e-5):
-                                sign_d = parity(d)
-                                true[p[0], p[1], d[0], d[1]] += sign_p * sign_d * coeff[i] * coeff[
-                                    j]
-
-                                if np.all(np.abs(p[1:] - d[1:]) < 1e-5):
-                                    true_onedm[p[0], d[0]] += sign_p * sign_d * coeff[i] * coeff[j]
-                print("\n")
-            return true, true_onedm
-
-
         ham = pyci.restricted_ham(datafile('{0:s}.fcidump'.format(filename)))
         wfn = wfn_type(ham.nbasis, *occs)
         wfn.add_all_dets()
@@ -139,17 +104,12 @@ class TestRoutines:
         elif isinstance(wfn, pyci.fullci_wfn):
             d1, d2 = pyci.compute_rdms(wfn, cs[0])
             rdm1, rdm2 = pyci.make_rdms(d1, d2)
-            # TODO: Ali commented this out because the code does it.
-            # rdm1 = rdm1 + rdm1.T - np.diag(rdm1)
-
         else:
             rdm1, rdm2 = pyci.compute_rdms(wfn, cs[0])
         with np.load(datafile('{0:s}_spinres.npz'.format(filename))) as f:
             one_mo = f['one_mo']
             two_mo = f['two_mo']
-
         assert np.all(np.abs(rdm1 - rdm1.T) < 1e-5)
-
         # Test RDM2 is antisymmetric
         for i in range(0, wfn.nbasis * 2):
             for j in range(0, wfn.nbasis * 2):
@@ -157,14 +117,10 @@ class TestRoutines:
                 for k in range(0, wfn.nbasis * 2):
                     for l in range(0, wfn.nbasis * 2):
                         assert np.abs(rdm2[i, j, k, l] - rdm2[k, l, i, j]) < 1e-5
-
         # "Testing that non Antiysmmetric parts are all zeros."
         for i in range(0, wfn.nbasis * 2):
-            print("i,", i)
             assert np.all(np.abs(rdm2[i, i, :, :]) < 1e-5)
             assert np.all(np.abs(rdm2[:, :, i, i]) < 1e-5)
-
-
         energy = ham.ecore
         energy += np.einsum('ij,ij', one_mo, rdm1)
         energy += 0.25 * np.einsum('ijkl,ijkl', two_mo, rdm2)
@@ -402,16 +358,12 @@ class TestRDMAnalyticExamples():
     def test_make_rdm_rdm2_two_up_one_dn(self):
         wfn = pyci.fullci_wfn(3, 2, 1)
         wfn.add_all_dets()
-        print("Number of Spatial Orbital Basis ", wfn.nbasis)
-        print("Determinant Array in Binary")
-        print(wfn.to_det_array())
 
         coeffs = np.sqrt(np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.]))
         coeffs /= np.linalg.norm(coeffs)
 
         d0, d1 = pyci.compute_rdms(wfn, coeffs)
 
-        print(d1[0].shape)
         # assert antisymmetry aspec of aaaa is all zeros.
         for i in range(0, 3):
             assert np.all(np.abs(d1[0, i, i, :, :]) < 1e-5)
@@ -513,5 +465,3 @@ class TestRDMAnalyticExamples():
         assert np.abs(abab[2, 2, 2, 0] - coeffs[5] * coeffs[3] - coeffs[6] * coeffs[8]) < 1e-5
         assert np.abs(abab[2, 2, 2, 1] - coeffs[5] * coeffs[4] - coeffs[8] * coeffs[7]) < 1e-5
         assert np.abs(abab[2, 2, 2, 2] - coeffs[8] ** 2.0 - coeffs[5] ** 2.0) < 1e-5
-
-
