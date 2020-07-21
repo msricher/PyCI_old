@@ -17,7 +17,6 @@
 
 #include <vector>
 
-#include <iostream>
 #include <pyci.h>
 
 
@@ -71,64 +70,6 @@ void OneSpinWfn::compute_rdms_doci(const double *coeffs, double *d0, double *d2)
 }
 
 
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-
-void print_array(double *rdm2, int nbasis) {
-    for (int i = 0; i < nbasis; i++)
-    {
-        for(int j = 0 ; j < nbasis; j++)
-        {
-            for(int k = 0; k < nbasis; k++)
-            {
-                for(int l = 0; l < nbasis; l++)
-                {
-                    int index = nbasis * nbasis * nbasis * i + nbasis * nbasis * j + nbasis * k + l;
-                    py::print(i, j, k, l, rdm2[index]);
-                }
-            }
-            py::print("\n");
-        }
-    }
-}
-
-void print_vector(std::vector<int_t> vec, int row)
-{
-    for(int m = 0 ; m < row ; m++)
-    {
-        py::print(vec[m], " ");
-    }
-}
-
-void print_vector2(std::vector<uint_t> vec, int row)
-{
-    for(int m = 0 ; m < row ; m++)
-    {
-        py::print(vec[m], " ");
-    }
-}
-
-int indices_to_index(int i, int j, int k, int l, int nbasis)
-{
-    return i * nbasis * nbasis * nbasis + j * nbasis * nbasis + k * nbasis + l;
-}
-
-
-double factorial(int_t x)
-{
-    if (x == 0)
-    {
-        return 1.0;
-    }
-    double output = 1.0;
-    for(int i = 1; i <= x; ++i)
-    {
-        output *= (double) i;
-    }
-    return output;
-}
-
-
 void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *bb,
         double *aaaa, double *bbbb, double *abab) const {
     // prepare working vectors
@@ -168,7 +109,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
     // This number is needed because all of the various ways of permutating the parts that are going to be traced out.,
     //double permutation_2rdm_aaaa_bbbb = factorial(nocc_up - 2 + nocc_dn);
     double permutation_2rdm_aaaa_bbbb = 1.0;
-    py::print("Permutation ", permutation_1rdm);
 
     for (int_t idet = 0; idet < ndet; ++idet) {
         // fill working vectors
@@ -181,18 +121,8 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
         fill_virs(nword, nbasis, rdet_dn, &virs_dn[0]);
         val1 = coeffs[idet] * coeffs[idet];
 
-        py::print("Determinant Number ", idet);
-        print_vector2(det, det.size());
-        py::print("Occupation Up Then Down. ");
-        print_vector(occs_up, occs_up.size());
-        print_vector(occs_dn, occs_dn.size());
-        py::print("Virtual Up Then Down");
-        print_vector(virs_up, virs_up.size());
-        print_vector(virs_dn, virs_dn.size());
-
 
         // loop over spin-up occupied indices
-        py::print("Loop over Up");
         for (i = 0; i < nocc_up; ++i) {
             ii = occs_up[i];
             ioffset = n3 * ii;
@@ -208,31 +138,25 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                 aaaa[koffset + kk * n1 + ii] -= val1 * permutation_2rdm_aaaa_bbbb;
 
                 // TODO: Double check the indices work.
-                aaaa[indices_to_index(kk, ii, ii, kk, nbasis)] -= val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[kk * n3 + ii * n2  + ii * n1 + kk] -= val1 * permutation_2rdm_aaaa_bbbb;
                 //rdm2(ii, kk, kk, ii) -= val1;
-                aaaa[indices_to_index(kk, ii, kk, ii, nbasis)] += val1 * permutation_2rdm_aaaa_bbbb;
+                aaaa[kk * n3 + ii * n2 + kk * n1 + ii] += val1 * permutation_2rdm_aaaa_bbbb;
             }
             for (k = 0; k < nocc_dn; ++k) {
                 kk = occs_dn[k];
-                py::print("    abab, Diagonal, ii", ii, "kk", kk, "ii", ii, "kk", kk);
                 //abab(ii, kk, ii, kk) += val1;
                 abab[ioffset + kk * n2 + ii * n1 + kk] += val1;
 
             }
 
             // loop over spin-up virtual indices
-            py::print("     Start Spin-up virtual ");
             for (j = 0; j < nvir_up; ++j) {
                 jj = virs_up[j];
                 // 1-0 excitation elements
                 excite_det(ii, jj, det_up);
-                py::print("    Excite ");
-                print_vector2(det, nword);
-                py::print("    Done ");
                 sign_up = phase_single_det(nword, ii, jj, rdet_up);
                 jdet = index_det(det_up);
 
-                py::print("    jj ", jj, "jdet", jdet);
 
                 // check if 1-0 excited determinant is in wfn
                 if (jdet > idet) {
@@ -246,56 +170,38 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                         {
                             kk = occs_up[k];
                             koffset = ioffset + n2 * kk;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "ii", ii, "kk", kk, "jj", jj, "kk", kk);
                             //aaaa(ii, kk, jj, kk) += val2;
                             aaaa[koffset + jj * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "ii", ii, "kk", kk, "kk", kk, "jj", jj);
                             //aaaa(ii, kk, kk, jj) -= val2;
                             aaaa[koffset + kk * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
 
                             // aaaa(kk, ii, kk, jj)
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "kk", kk, "ii", ii, "kk", kk, "jj", jj);
                             aaaa[kk * n3 + ii * n2 + kk * n1 + jj] += val2 * permutation_2rdm_aaaa_bbbb;
                             // aaaa(kk, ii, jj, kk)
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "kk", kk, "ii", ii, "jj", jj, "kk", kk);
                             aaaa[kk * n3 + ii * n2 + jj * n1 + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
 
 
-
                             // Switch Particles
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "jj", jj, "kk", kk, "ii", ii, "kk", kk);
                             //aaaa(jj, kk, ii, kk)
                             aaaa[n3 * jj + n2 * kk + n1 * ii + kk] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "jj", jj, "kk", kk, "kk", kk, "ii", ii);
                             //aaaa(jj, kk, kk, ii)
                             aaaa[n3 * jj + n2 * kk + n1 * kk + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
 
                             //Switch Above
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "kk", kk, "jj", jj, "ii", ii, "kk", kk);
                             //aaaa(kk, jj, ii, kk)
                             aaaa[n3 * kk + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "kk", kk, "jj", jj, "kk", kk, "ii", ii);
                             //aaaa(kk, jj, kk, ii)
                             aaaa[n3 * kk + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
-
-                            py::print("    disti ", ii, kk, jj, kk);
-                            py::print("    disti ", ii, kk, jj, jj);
-                            py::print("    disti ", kk, ii, kk, jj);
-                            py::print("    disti ", kk, ii, jj, kk);
-                            py::print("    disti ", kk, jj, ii, kk);
-                            py::print("    disti ", kk, jj, kk, ii);
 
                         }
                     }
 
                     for (k = 0; k < nocc_dn; ++k) {
                         kk = occs_dn[k];
-                        py::print("    abab: idet", idet, "jdet,", jdet, "ii", ii, "kk", kk, "jj", jj, "kk", kk);
                         //abab(ii, kk, jj, kk) += val2;
                         abab[ioffset + kk * n2 + jj * n1 + kk] += val2;
 
                         // TODO: Ive added the enxt line
-                        py::print("    abab: idet", idet, "jdet,", jdet, "jj", jj, "kk", kk, "ii", ii, "kk", kk);
                         //abab(jj, kk, ii, kk)
                         abab[n3 * jj + kk * n2 + ii * n1 + kk] += val2;
                     }
@@ -303,7 +209,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                 }
 
                 // loop over spin-down occupied indices
-                py::print("    Start spin-down occupied down ");
                 for (k = 0; k < nocc_dn; ++k) {
                     kk = occs_dn[k];
                     koffset = ioffset + n2 * kk;
@@ -315,8 +220,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                         jdet = index_det(det_up);
                         // check if 1-1 excited determinant is in wfn
                         if (jdet > idet) {
-                            py::print("    abab idet ", idet, "jdet ", jdet, "ii", ii, "kk", kk, "jj", jj, "ll", ll);
-
                             // compute 1-1 terms
                             val2 = coeffs[idet] * coeffs[jdet]
                                  * sign_up * phase_single_det(nword, kk, ll, rdet_dn);
@@ -325,7 +228,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
 
                             // ALI I've added the next line
                             //abab(jj, ll, ii, kk)
-                            py::print("    abab idet ", idet, "jdet ", jdet, "jj", jj, "ll", ll, "ii", ii, "kk", kk);
                             abab[n3 * jj + n2 * ll + n1 * ii + kk] += val2;
                         }
                         excite_det(ll, kk, det_dn);
@@ -348,11 +250,9 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                             // compute 2-0 terms
                             val2 = coeffs[idet] * coeffs[jdet]
                                  * phase_double_det(nword, ii, kk, jj, ll, rdet_up);
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "ii", ii, "kk", kk, "jj", jj, "ll", ll);
 
                             //aaaa(ii, kk, jj, ll) += val2;
                             aaaa[koffset + jj * n1 + ll] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "ii", ii, "kk", kk, "ll", ll, "jj", jj);
                             //aaaa(ii, kk, ll, jj) -= val2;
                             aaaa[koffset + ll * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
 
@@ -364,20 +264,14 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
 
                            // ALI: I've added this may have to remove it.
                              //aaaa(jj, ll, ii, kk) += val2;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "jj", jj, "ll", ll, "ii", ii, "kk", kk);
                             aaaa[jj * n3 + ll * n2 + ii * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
                             //aaaa(jj, ll, kk, ii)
                             aaaa[jj * n3 + ll * n2 + kk * n1 + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    aaaa: idet", idet, "jdet,", jdet, "ll", ll, "jj", jj, "ii", ii, "kk", kk );
                             //aaaa(ll, jj, ii, kk) -= val2;
                             aaaa[n3 * ll + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
                             //aaaa(ll, jj, kk, ii) += val2;
                             aaaa[n3 * ll + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
 
-                            py::print("    disti ", ii, kk, jj, ll);
-                            py::print("    disti ", ii, kk, ll, jj);
-                            py::print("    disti ", jj, ll, ii, kk);
-                            py::print("    disti ", ll, jj, ii, kk);
                         }
                         excite_det(ll, kk, det_up);
                     }
@@ -394,32 +288,25 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
         */
 
         // loop over spin-down occupied indices
-        py::print("Loop Over Spin-Down.");
         for (i = 0; i < nocc_dn; ++i) {
             ii = occs_dn[i];
             ioffset = n3 * ii;
             // compute 0-0 terms
             //bb(ii, ii) += val1;
             bb[(n1 + 1) * ii] += val1 * permutation_1rdm;
-            py::print("    ii ", ii);
-
             for (k = i + 1; k < nocc_dn; ++k) {
                 kk = occs_dn[k];
                 koffset = ioffset + n2 * kk;
 
-                py::print("    bbbb, idet ", idet, "ii", ii, "kk", kk, "ii", ii, "kk", kk);
-                py::print("    bbbb, idet ", idet, "ii", ii, "kk", kk, "kk", kk, "ii", ii);
                 //bbbb(ii, kk, ii, kk) += val1;
                 bbbb[koffset + ii * n1 + kk] += val1 * permutation_2rdm_aaaa_bbbb;
                 //bbbb(ii, kk, kk, ii) -= val1;
                 bbbb[koffset + kk * n1 + ii] -= val1 * permutation_2rdm_aaaa_bbbb;
 
                 // TODO: Double check the indices work.
-                py::print("    bbbb, idet ", idet, "kk", kk, "ii", ii, "ii", ii, "kk", kk);
-                py::print("    bbbb, idet ", idet, "kk", kk, "ii", ii, "kk", kk, "ii", ii);
-                bbbb[indices_to_index(kk, ii, ii, kk, nbasis)] -= val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[kk * n3 +  ii * n2 + ii * n1 + kk] -= val1 * permutation_2rdm_aaaa_bbbb;
                 //rdm2(ii, kk, kk, ii) -= val1;
-                bbbb[indices_to_index(kk, ii, kk, ii, nbasis)] += val1 * permutation_2rdm_aaaa_bbbb;
+                bbbb[kk * n3 + ii * n2 + kk * n1 + ii] += val1 * permutation_2rdm_aaaa_bbbb;
             }
 
 
@@ -431,7 +318,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                 // TODO : Ali chanaged det_up to det_dn. It gives lots of errors if I do so I lfet it as det_up!.
                 jdet = index_det(det_up);
 
-                py::print("    jj", jj);
                 // check if 0-1 excited determinant is in wfn
                 if (jdet > idet) {
                     // compute 0-1 terms
@@ -443,7 +329,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                     for (k = 0; k < nocc_up; ++k) {
                         kk = occs_up[k];
                         //abab(ii, kk, jj, kk) += val2;
-                        py::print("    abab: idet ", idet, "jdet", jdet, "ii", ii, "kk", kk, "kk", kk, "jj", jj);
                         // I'm switchking ii, kk the next line is the Legit one. This is the last change I made.
                         // The reason for the switch is because ii is spin down and kk is spin up but it is abab.
                         //abab[ioffset + kk * n2 + kk * n1 + jj] += val2;
@@ -451,7 +336,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
 
                         // TODO Might have to remove this- next line->
                         //abab(kk, jj, kk, ii)
-                        py::print("    abab: idet ", idet, "jdet", jdet, "kk", kk, "jj", jj, "kk", kk, "ii", ii);
                         abab[n3 * kk + jj * n2 + kk * n1 + ii] += val2;
                     }
                     for (k = 0; k < nocc_dn; ++k) {
@@ -459,17 +343,13 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                         if (i != k){
                             kk = occs_dn[k];
 
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "ii", ii, "kk ", kk, "jj", jj, "kk", kk);
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "ii", ii, "kk ", kk, "kk", kk, "jj", jj);
+
                             koffset = ioffset + n2 * kk;
                             //bbbb(ii, kk, jj, kk) += val2;
                             bbbb[koffset + jj * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
                             //bbbb(ii, kk, kk, jj) -= val2;
                             bbbb[koffset + kk * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
 
-
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "kk", kk, "ii ", ii, "kk", kk, "jj", jj);
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "kk", kk, "ii ", ii, "jj", jj, "kk", kk);
                             // bbbb(kk, ii, kk, jj)
                             bbbb[kk * n3 + ii * n2 + kk * n1 + jj] += val2 * permutation_2rdm_aaaa_bbbb;
                             // bbbb(kk, ii, jj, kk)
@@ -477,18 +357,14 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
 
 
                             // Switch Particles
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "jj", jj, "kk", kk, "ii", ii, "kk", kk);
                             //bbbb(jj, kk, ii, kk)
                             bbbb[n3 * jj + n2 * kk + n1 * ii + kk] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "jj", jj, "kk", kk, "kk", kk, "ii", ii);
                             //bbbb(jj, kk, kk, ii)
                             bbbb[n3 * jj + n2 * kk + n1 * kk + ii] -= val2 * permutation_2rdm_aaaa_bbbb;
 
                             //Switch Above
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "kk", kk, "jj", jj, "ii", ii, "kk", kk);
                             //bbbb(kk, jj, ii, kk)
                             bbbb[n3 * kk + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "kk", kk, "jj", jj, "kk", kk, "ii", ii);
                             //bbbb(kk, jj, kk, ii)
                             bbbb[n3 * kk + n2 * jj + n1 * kk + ii] += val2 * permutation_2rdm_aaaa_bbbb;
 
@@ -499,7 +375,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                 // loop over spin-down occupied indices
                 for (k = i + 1; k < nocc_dn; ++k) {
                     kk = occs_dn[k];
-                    py::print("    k ", k, "kk", kk);
                     koffset = ioffset + n2 * kk;
                     // loop over spin-down virtual indices
                     for (l = j + 1; l < nvir_dn; ++l) {
@@ -508,7 +383,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                         // 0-2 excitation elements
                         excite_det(kk, ll, det_dn);
                         jdet = index_det(det_up); // ALI I changed this to det_dn.
-                        py::print("    jdet ", jdet);
                         // check if excited determinant is in wfn
                         if (jdet > idet) {
                             // compute 2-0 terms
@@ -517,10 +391,8 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                             //     * phase_double_det(nword, ii, kk, ll, jj, rdet_dn);
                             val2 = coeffs[idet] * coeffs[jdet]
                                      * phase_double_det(nword, ii, kk, jj, ll, rdet_dn);
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "ii", ii, "kk", kk, "jj", jj, "ll", ll);
                             //bbbb(ii, kk, jj, ll) += val2;
                             bbbb[koffset + jj * n1 + ll] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    bbbb: idet ", idet, "jdet", jdet, "ii", ii, "kk", kk, "ll", ll, "jj", jj);
                             //bbbb(ii, kk, ll, jj) -= val2;
                             bbbb[koffset + ll * n1 + jj] -= val2 * permutation_2rdm_aaaa_bbbb;
 
@@ -532,9 +404,7 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
                             bbbb[n3 * kk + n2 * ii + n1 * ll + jj] += val2 * permutation_2rdm_aaaa_bbbb;
 
                              //bbbb(jj, ll, ii, kk) += val2;
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "jj", jj, "ll", ll, "ii", ii, "kk", kk);
                             bbbb[jj * n3 + ll * n2 + ii * n1 + kk] += val2 * permutation_2rdm_aaaa_bbbb;
-                            py::print("    bbbb: idet", idet, "jdet,", jdet, "ll", ll, "jj", jj, "ii", ii, "kk", kk );
                             //bbbb(ll, jj, ii, kk) -= val2;
                             bbbb[n3 * ll + n2 * jj + n1 * ii + kk] -= val2 * permutation_2rdm_aaaa_bbbb;
 
@@ -553,7 +423,6 @@ void TwoSpinWfn::compute_rdms_fullci(const double *coeffs, double *aa, double *b
             }
 
         }
-        py::print("Next Determinant \n \n");
 
     }
 }
@@ -582,8 +451,6 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
     int_t n3 = n1 * n2;
     double val1, val2;
 
-    py::print("Number of occupation in C", nocc);
-    py::print("Number of Virtual in C", nvir);
 
     for (int_t idet = 0; idet < ndet; ++idet) {
         // fill working vectors
@@ -593,12 +460,6 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
         fill_virs(nword, nbasis, rdet, &virs[0]);
         val1 = coeffs[idet] * coeffs[idet];
 
-        py::print("Determinant");
-        print_vector2(det, det.size());
-        py::print("Virtual ");
-        print_vector(virs, virs.size());
-        py::print("Occupancy ");
-        print_vector(occs, occs.size());
 
         // loop over occupied indices
         for (i = 0; i < nocc; ++i) {
@@ -609,35 +470,24 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
             rdm1[(n1 + 1) * ii] += val1;
 
             // k = i + 1; because symmetric matrix and that when k == i, it is zero.
-            py::print("Diagonal");
             for (k = i + 1; k < nocc; ++k) {
-
-                py::print("idet ", idet, "ii", occs[i], "kk", occs[k]);
-
                 //rdm2(ii, kk, ii, kk) += val1;
-                rdm2[indices_to_index(occs[i], occs[k], occs[i], occs[k], nbasis)] += val1;
+                rdm2[ii * n3 + kk * n2  + ii * n1 + kk] += val1;
                 //rdm2(ii, kk, kk, ii) -= val1;
-                rdm2[indices_to_index(occs[i], occs[k], occs[k], occs[i], nbasis)] -= val1;
+                rdm2[ii * n3 + kk * n2 + kk * n1 + ii] -= val1;
 
-                //rdm2(ii, kk, ii, kk) += val1;
-                rdm2[indices_to_index(occs[k], occs[i], occs[i], occs[k], nbasis)] -= val1;
-                //rdm2(ii, kk, kk, ii) -= val1;
-                rdm2[indices_to_index(occs[k], occs[i], occs[k], occs[i], nbasis)] += val1;
+                //rdm2(kk, ii, ii, kk) += val1;
+                rdm2[kk * n3 + ii * n2 + ii * n1 + kk] -= val1;
+                //rdm2(kk, ii, kk, ii) -= val1;
+                rdm2[kk * n3 + ii * n2 + kk * n1 + kk] += val1;
             }
 
-
-            py::print("Over Vitual Indices");
             // loop over virtual indices
             for (j = 0; j < nvir; ++j) {
                 jj = virs[j];
                 // single excitation elements
 
-                py::print("ii, jj, det", ii, jj, det[0]);
                 excite_det(ii, jj, &det[0]);
-
-                py::print("Excite ");
-                print_vector2(det, det.size());
-                py::print("Done ");
 
 
                 jdet = index_det(&det[0]);
@@ -652,16 +502,14 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
                         {
                         kk = occs[k];
 
-                        py::print("idet ", idet, "jdet ", jdet, "---> ", "ii", ii, "kk", kk, "jj", jj);
-
                         //rdm2(ii, kk, jj, kk) += val2;
-                         rdm2[indices_to_index(ii, kk, jj, kk, nbasis)] += val2;
+                         rdm2[ii * n3 + kk * n2 + jj * n1 + kk] += val2;
                         //rdm2(ii, kk, kk, jj) -= val2;
-                         rdm2[indices_to_index(ii, kk, kk, jj, nbasis)] -= val2;
+                         rdm2[ii * n3 + kk * n2 + kk * n2 + jj] -= val2;
 
 
-                        rdm2[indices_to_index(kk, ii, jj, kk, nbasis)] -= val2;
-                        rdm2[indices_to_index(kk, ii, kk, jj, nbasis)] += val2;
+                        rdm2[kk * n3 + ii * n2 + jj * n1 + kk] -= val2;
+                        rdm2[kk * n3 + ii * n2 + kk * n1 + jj] += val2;
                         }
                     }
                 }
@@ -683,9 +531,9 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
                             val2 = coeffs[idet] * coeffs[jdet]
                                  * phase_double_det(nword, ii, kk, jj, ll, rdet);
                             //rdm2(ii, kk, jj, ll) += val2;
-                            rdm2[indices_to_index(ii, kk, jj, ll, nbasis)] += val2;
+                            rdm2[ii * n3 + kk * n2 + jj * n1 + ll] += val2;
                             //rdm2(ii, kk, ll, jj) -= val2;
-                            rdm2[indices_to_index(ii, kk, ll, jj, nbasis)] -= val2;
+                            rdm2[ii * n3 + kk * n2 + ll * n1 + jj] -= val2;
                         }
 
                         excite_det(ll, kk, &det[0]);
@@ -694,13 +542,8 @@ void OneSpinWfn::compute_rdms_genci(const double *coeffs, double *rdm1, double *
 
                 excite_det(jj, ii, &det[0]);
 
-                py::print("DeExcite? ");
-                print_vector2(det, det.size());
-                py::print("Done ");
             }
-        py::print("Next occupancy i. \n ");
         }
-    py::print("Next Determinant. \n \n ");
     }
 }
 

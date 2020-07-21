@@ -137,22 +137,10 @@ class TestRoutines:
             npt.assert_allclose(energy, es[0], rtol=0.0, atol=1.0e-9)
             rdm1, rdm2 = pyci.make_rdms(d0, d2)
         elif isinstance(wfn, pyci.fullci_wfn):
-            assert isinstance(wfn, pyci.fullci_wfn)
-
-            # true = true_two_rdm_two_spin_up_two_down(wfn, cs[0])
-            # print(true.shape)
-            # np.save("true_rdm2_be.npy", true[0])
-            # np.save("true_rdm1_be.npy", true[1])
-            # true = np.load("true_rdm_be.npy")
-            # print(true)
-            # assert 1 == 0
             d1, d2 = pyci.compute_rdms(wfn, cs[0])
             rdm1, rdm2 = pyci.make_rdms(d1, d2)
             # TODO: Ali commented this out because the code does it.
             # rdm1 = rdm1 + rdm1.T - np.diag(rdm1)
-            # a, b,c, d= np.nonzero(rdm2 - true)
-            # print(a[:5], b[:5], c[:5], d[:5])
-            # assert np.all(np.abs(rdm2 - true) < 1e-5)
 
         else:
             rdm1, rdm2 = pyci.compute_rdms(wfn, cs[0])
@@ -178,12 +166,8 @@ class TestRoutines:
 
 
         energy = ham.ecore
-        energy += np.einsum('ij,ij', one_mo, rdm1)  # Kinetic Energy and External Potential.
-        print("Energy one rdm", np.einsum('ij,ij', one_mo, rdm1))
-        # TODO: Try out 3/4
+        energy += np.einsum('ij,ij', one_mo, rdm1)
         energy += 0.25 * np.einsum('ijkl,ijkl', two_mo, rdm2)
-        print("Energy two rdm", 0.25 * np.einsum('ijkl,ijkl', two_mo, rdm2))
-        print("Our Energy", energy, "True ", es[0])
         npt.assert_allclose(energy, es[0], rtol=0.0, atol=1.0e-9)
 
     def run_run_hci(self, filename, wfn_type, occs, energy):
