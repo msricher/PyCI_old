@@ -273,32 +273,49 @@ public:
   int_t run_hci_fullci(const double *, const double *, const double *, const double);
 };
 
+struct DOCIWfn : public OneSpinWfn {};
+
+struct FullCIWfn : public TwoSpinWfn {};
+
+struct GenCIWfn : public OneSpinWfn {};
+
+/* Hamiltonian class. */
+struct Ham {
+public:
+  int_t nbasis;
+  double ecore, *one_mo, *two_mo, *h, *v, *w;
+};
+
 /* Sparse matrix operator with eigensolver. */
-struct SparseOp {
+struct SparseOp_t {
 public:
   int_t nrow, ncol, size;
   double ecore;
+
+private:
   std::vector<double> data;
   std::vector<int_t> indices;
   std::vector<int_t> indptr;
 
-  SparseOp(void);
-
-  SparseOp(SparseOp &&) noexcept;
-
-  inline int_t rows(void) const {
-    return nrow;
+public:
+  inline SparseOp_t(const int_t rows, const int_t cols)
+      : nrow(rows), ncol(cols), size(0), ecore(0.0) {
+    indptr.push_back(0);
   }
 
-  inline int_t cols(void) const {
-    return ncol;
+  template <class WfnType> SparseOp_t(const Ham &, const WfnType &, const int_t, const int_t);
+
+  inline const double *data_ptr(const int_t index) const {
+    return &data[index];
   }
 
-  const double *data_ptr(const int_t) const;
+  inline const int_t *indices_ptr(const int_t index) const {
+    return &indices[index];
+  }
 
-  const int_t *indices_ptr(const int_t) const;
-
-  const int_t *indptr_ptr(const int_t) const;
+  inline const int_t *indptr_ptr(const int_t index) const {
+    return &indptr[index];
+  }
 
   double get_element(const int_t, const int_t) const;
 
@@ -310,17 +327,16 @@ public:
 
   void rhs_cepa0(double *, const int_t) const;
 
-  void solve(const double *, const int_t, const int_t, const int_t, const double, double *,
-             double *) const;
+private:
+  void init_thread_sort_row(const int_t);
 
-  void init_doci(const OneSpinWfn &, const double, const double *, const double *, const double *,
-                 const int_t, const int_t);
+  void init_thread_condense(SparseOp_t &, const int_t);
 
-  void init_fullci(const TwoSpinWfn &, const double, const double *, const double *, const int_t,
-                   const int_t);
+  void init_thread_add_row(const Ham &, const DOCIWfn &, const int_t, uint_t *, int_t *, int_t *);
 
-  void init_genci(const OneSpinWfn &, const double, const double *, const double *, const int_t,
-                  const int_t);
+  void init_thread_add_row(const Ham &, const FullCIWfn &, const int_t, uint_t *, int_t *, int_t *);
+
+  void init_thread_add_row(const Ham &, const GenCIWfn &, const int_t, uint_t *, int_t *, int_t *);
 };
 
 } // namespace pyci
