@@ -19,6 +19,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 /* Uncomment this to use exact (colexicographical order) hashing.
@@ -56,21 +57,26 @@ typedef std::int64_t int_t;
 typedef std::uint64_t uint_t;
 
 /* Hash map template type. */
-template <class KeyType, class ValueType> using hashmap = phmap::flat_hash_map<KeyType, ValueType>;
+template<class KeyType, class ValueType>
+using hashmap = phmap::flat_hash_map<KeyType, ValueType>;
 
 /* Forward-declare classes. */
-
+struct Ham;
+struct RstHam;
+struct GenHam;
+struct Wfn;
 struct OneSpinWfn;
-
 struct TwoSpinWfn;
-
+struct DOCIWfn;
+struct FullCIWfn;
+struct GenCIWfn;
 struct SparseOp;
 
-/* Common functions. */
-
-bool binomial_raises(int_t, int_t);
+/* PyCI routines. */
 
 int_t binomial(int_t, int_t);
+
+int_t binomial_cutoff(int_t, int_t);
 
 void fill_det(const int_t, const int_t *, uint_t *);
 
@@ -84,14 +90,6 @@ int_t rank_colex(const int_t, const int_t, const uint_t *);
 
 void unrank_colex(int_t, const int_t, int_t, int_t *);
 
-int_t nword_det(const int_t);
-
-void excite_det(const int_t, const int_t, uint_t *);
-
-void setbit_det(const int_t, uint_t *);
-
-void clearbit_det(const int_t, uint_t *);
-
 int_t phase_single_det(const int_t, const int_t, const int_t, const uint_t *);
 
 int_t phase_double_det(const int_t, const int_t, const int_t, const int_t, const int_t,
@@ -101,242 +99,365 @@ int_t popcnt_det(const int_t, const uint_t *);
 
 int_t ctz_det(const int_t, const uint_t *);
 
-/* Wave function class with determinants made up of one bitstring. */
-struct OneSpinWfn {
-public:
-  int_t nword, nbasis, nocc, nvir, ndet;
-  std::vector<uint_t> dets;
+inline int_t nword_det(const int_t n) {
+    return n / PYCI_UINT_SIZE + ((n % PYCI_UINT_SIZE) ? 1 : 0);
+}
 
-private:
-  hashmap<uint_t, int_t> dict;
+inline void excite_det(const int_t i, const int_t a, uint_t *det) {
+    det[i / PYCI_UINT_SIZE] &= ~(PYCI_UINT_ONE << (i % PYCI_UINT_SIZE));
+    det[a / PYCI_UINT_SIZE] |= PYCI_UINT_ONE << (a % PYCI_UINT_SIZE);
+}
 
-public:
-  OneSpinWfn(void);
+inline void setbit_det(const int_t i, uint_t *det) {
+    det[i / PYCI_UINT_SIZE] |= PYCI_UINT_ONE << (i % PYCI_UINT_SIZE);
+}
 
-  OneSpinWfn(OneSpinWfn &&) noexcept;
+inline void clearbit_det(const int_t i, uint_t *det) {
+    det[i / PYCI_UINT_SIZE] &= ~(PYCI_UINT_ONE << (i % PYCI_UINT_SIZE));
+}
 
-  OneSpinWfn(const int_t, const int_t);
+double compute_overlap(const OneSpinWfn &, const OneSpinWfn &, const double *, const double *);
 
-  OneSpinWfn(const OneSpinWfn &);
+double compute_overlap(const TwoSpinWfn &, const TwoSpinWfn &, const double *, const double *);
 
-  OneSpinWfn(const TwoSpinWfn &);
+/* Hamiltonian classes. */
 
-  OneSpinWfn(const char *);
-
-  OneSpinWfn(const int_t, const int_t, const int_t, const uint_t *);
-
-  OneSpinWfn(const int_t, const int_t, const int_t, const int_t *);
-
-  void init(const int_t, const int_t);
-
-  void from_onespinwfn(const OneSpinWfn &);
-
-  void from_twospinwfn(const TwoSpinWfn &);
-
-  void from_file(const char *);
-
-  void from_det_array(const int_t, const int_t, const int_t, const uint_t *);
-
-  void from_occs_array(const int_t, const int_t, const int_t, const int_t *);
-
-  void to_file(const char *) const;
-
-  void to_occs_array(const int_t, const int_t, int_t *) const;
-
-  int_t index_det(const uint_t *) const;
-
-  int_t index_det_from_rank(const uint_t) const;
-
-  void copy_det(const int_t, uint_t *) const;
-
-  const uint_t *det_ptr(const int_t) const;
-
-  uint_t rank_det(const uint_t *) const;
-
-  int_t add_det(const uint_t *);
-
-  int_t add_det_with_rank(const uint_t *, const uint_t);
-
-  int_t add_det_from_occs(const int_t *);
-
-  void add_hartreefock_det(void);
-
-  void add_all_dets(void);
-
-  void add_excited_dets(const uint_t *, const int_t);
-
-  void add_dets_from_wfn(const OneSpinWfn &);
-
-  void reserve(const int_t);
-
-  void squeeze(void);
-
-  void clear(void);
-
-  void compute_rdms_doci(const double *, double *, double *) const;
-
-  void compute_rdms_genci(const double *, double *, double *) const;
-
-  double compute_overlap(const double *, const OneSpinWfn &, const double *) const;
-
-  double compute_enpt2_doci(const double *, const double *, const double *, const double,
-                            const double) const;
-
-  double compute_enpt2_genci(const double *, const double *, const double *, const double,
-                             const double) const;
-
-  int_t run_hci_doci(const double *, const double *, const double);
-
-  int_t run_hci_genci(const double *, const double *, const double *, const double);
-};
-
-/* Wave function class with determinants made up of two bitstrings. */
-struct TwoSpinWfn {
-public:
-  int_t nword, nword2, nbasis, nocc_up, nocc_dn, nvir_up, nvir_dn;
-  int_t ndet, maxdet_up, maxdet_dn;
-  std::vector<uint_t> dets;
-
-private:
-  hashmap<uint_t, int_t> dict;
-
-public:
-  TwoSpinWfn(void);
-
-  TwoSpinWfn(TwoSpinWfn &&) noexcept;
-
-  TwoSpinWfn(const int_t, const int_t, const int_t);
-
-  TwoSpinWfn(const OneSpinWfn &);
-
-  TwoSpinWfn(const TwoSpinWfn &);
-
-  TwoSpinWfn(const char *);
-
-  TwoSpinWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
-
-  TwoSpinWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
-
-  void init(const int_t, const int_t, const int_t);
-
-  void from_onespinwfn(const OneSpinWfn &);
-
-  void from_twospinwfn(const TwoSpinWfn &);
-
-  void from_file(const char *);
-
-  void from_det_array(const int_t, const int_t, const int_t, const int_t, const uint_t *);
-
-  void from_occs_array(const int_t, const int_t, const int_t, const int_t, const int_t *);
-
-  void to_file(const char *) const;
-
-  void to_occs_array(const int_t, const int_t, int_t *) const;
-
-  int_t index_det(const uint_t *) const;
-
-  int_t index_det_from_rank(const uint_t) const;
-
-  void copy_det(const int_t, uint_t *) const;
-
-  const uint_t *det_ptr(const int_t) const;
-
-  uint_t rank_det(const uint_t *) const;
-
-  int_t add_det(const uint_t *);
-
-  int_t add_det_with_rank(const uint_t *, const uint_t);
-
-  int_t add_det_from_occs(const int_t *);
-
-  void add_hartreefock_det(void);
-
-  void add_all_dets(void);
-
-  void add_excited_dets(const uint_t *, const int_t, const int_t);
-
-  void add_dets_from_wfn(const TwoSpinWfn &);
-
-  void reserve(const int_t);
-
-  void squeeze(void);
-
-  void clear(void);
-
-  double compute_overlap(const double *, const TwoSpinWfn &, const double *) const;
-
-  void compute_rdms_fullci(const double *, double *, double *, double *, double *, double *) const;
-
-  double compute_enpt2_fullci(const double *, const double *, const double *, const double,
-                              const double) const;
-
-  int_t run_hci_fullci(const double *, const double *, const double *, const double);
-};
-
-struct DOCIWfn : public OneSpinWfn {};
-
-struct FullCIWfn : public TwoSpinWfn {};
-
-struct GenCIWfn : public OneSpinWfn {};
-
-/* Hamiltonian class. */
 struct Ham {
 public:
-  int_t nbasis;
-  double ecore, *one_mo, *two_mo, *h, *v, *w;
+    int_t nbasis;
+    double ecore, *one_mo, *two_mo, *h, *v, *w;
 };
 
-/* Sparse matrix operator with eigensolver. */
-struct SparseOp_t {
+/* Wave function classes. */
+
+struct Wfn {
 public:
-  int_t nrow, ncol, size;
-  double ecore;
+    int_t nbasis, nocc, nocc_up, nocc_dn, nvir, nvir_up, nvir_dn;
+    int_t ndet, nword, nword2, maxrank_up, maxrank_dn;
 
-private:
-  std::vector<double> data;
-  std::vector<int_t> indices;
-  std::vector<int_t> indptr;
+protected:
+    std::vector<uint_t> dets;
+    hashmap<uint_t, int_t> dict;
 
 public:
-  inline SparseOp_t(const int_t rows, const int_t cols)
-      : nrow(rows), ncol(cols), size(0), ecore(0.0) {
-    indptr.push_back(0);
-  }
+    Wfn(const Wfn &);
 
-  template <class WfnType> SparseOp_t(const Ham &, const WfnType &, const int_t, const int_t);
+    Wfn(const Wfn &&) noexcept;
 
-  inline const double *data_ptr(const int_t index) const {
-    return &data[index];
-  }
+    inline Wfn(const int_t nb, const int_t nu, const int_t nd) {
+        init(nb, nu, nd);
+    }
 
-  inline const int_t *indices_ptr(const int_t index) const {
-    return &indices[index];
-  }
+    void squeeze(void);
 
-  inline const int_t *indptr_ptr(const int_t index) const {
-    return &indptr[index];
-  }
+protected:
+    inline Wfn(void) {
+    }
 
-  double get_element(const int_t, const int_t) const;
+    void init(const int_t, const int_t, const int_t);
+};
 
-  void perform_op(const double *, double *) const;
+struct OneSpinWfn : public Wfn {
+public:
+    using Wfn::maxrank_dn;
+    using Wfn::maxrank_up;
+    using Wfn::nbasis;
+    using Wfn::ndet;
+    using Wfn::nocc;
+    using Wfn::nocc_dn;
+    using Wfn::nocc_up;
+    using Wfn::nvir;
+    using Wfn::nvir_dn;
+    using Wfn::nvir_up;
+    using Wfn::nword;
+    using Wfn::nword2;
 
-  void perform_op_cepa0(const double *, double *, const int_t) const;
+protected:
+    using Wfn::dets;
+    using Wfn::dict;
 
-  void perform_op_transpose_cepa0(const double *, double *, const int_t) const;
+public:
+    OneSpinWfn(const OneSpinWfn &);
 
-  void rhs_cepa0(double *, const int_t) const;
+    OneSpinWfn(const OneSpinWfn &&) noexcept;
 
-private:
-  void init_thread_sort_row(const int_t);
+    OneSpinWfn(const std::string &);
 
-  void init_thread_condense(SparseOp_t &, const int_t);
+    OneSpinWfn(const int_t, const int_t, const int_t);
 
-  void init_thread_add_row(const Ham &, const DOCIWfn &, const int_t, uint_t *, int_t *, int_t *);
+    OneSpinWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
 
-  void init_thread_add_row(const Ham &, const FullCIWfn &, const int_t, uint_t *, int_t *, int_t *);
+    OneSpinWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
 
-  void init_thread_add_row(const Ham &, const GenCIWfn &, const int_t, uint_t *, int_t *, int_t *);
+    inline const uint_t *det_ptr(const int_t i) const {
+        return &dets[i * nword];
+    }
+
+    void to_file(const std::string &) const;
+
+    void to_det_array(const int_t, const int_t, uint_t *) const;
+
+    void to_occ_array(const int_t, const int_t, int_t *) const;
+
+    int_t index_det(const uint_t *) const;
+
+    int_t index_det_from_rank(const uint_t) const;
+
+    void copy_det(const int_t, uint_t *) const;
+
+    uint_t rank_det(const uint_t *) const;
+
+    int_t add_det(const uint_t *);
+
+    int_t add_det_with_rank(const uint_t *, const uint_t);
+
+    int_t add_det_from_occs(const int_t *);
+
+    void add_hartreefock_det(void);
+
+    void add_all_dets(void);
+
+    void add_excited_dets(const uint_t *, const int_t);
+
+    void add_dets_from_wfn(const OneSpinWfn &);
+
+    void reserve(const int_t);
+};
+
+struct TwoSpinWfn : public Wfn {
+public:
+    using Wfn::maxrank_dn;
+    using Wfn::maxrank_up;
+    using Wfn::nbasis;
+    using Wfn::ndet;
+    using Wfn::nocc;
+    using Wfn::nocc_dn;
+    using Wfn::nocc_up;
+    using Wfn::nvir;
+    using Wfn::nvir_dn;
+    using Wfn::nvir_up;
+    using Wfn::nword;
+    using Wfn::nword2;
+
+protected:
+    using Wfn::dets;
+    using Wfn::dict;
+
+public:
+    TwoSpinWfn(const TwoSpinWfn &);
+
+    TwoSpinWfn(const TwoSpinWfn &&) noexcept;
+
+    TwoSpinWfn(const std::string &);
+
+    TwoSpinWfn(const int_t, const int_t, const int_t);
+
+    TwoSpinWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
+
+    TwoSpinWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
+
+    inline const uint_t *det_ptr(const int_t i) const {
+        return &dets[i * nword2];
+    }
+
+    void to_file(const std::string &) const;
+
+    void to_det_array(const int_t, const int_t, uint_t *) const;
+
+    void to_occ_array(const int_t, const int_t, int_t *) const;
+
+    int_t index_det(const uint_t *) const;
+
+    int_t index_det_from_rank(const uint_t) const;
+
+    void copy_det(const int_t, uint_t *) const;
+
+    uint_t rank_det(const uint_t *) const;
+
+    int_t add_det(const uint_t *);
+
+    int_t add_det_with_rank(const uint_t *, const uint_t);
+
+    int_t add_det_from_occs(const int_t *);
+
+    void add_hartreefock_det(void);
+
+    void add_all_dets(void);
+
+    void add_excited_dets(const uint_t *, const int_t, const int_t);
+
+    void add_dets_from_wfn(const TwoSpinWfn &);
+
+    void reserve(const int_t);
+};
+
+struct DOCIWfn final : public OneSpinWfn {
+public:
+    using Wfn::maxrank_dn;
+    using Wfn::maxrank_up;
+    using Wfn::nbasis;
+    using Wfn::ndet;
+    using Wfn::nocc;
+    using Wfn::nocc_dn;
+    using Wfn::nocc_up;
+    using Wfn::nvir;
+    using Wfn::nvir_dn;
+    using Wfn::nvir_up;
+    using Wfn::nword;
+    using Wfn::nword2;
+
+protected:
+    using Wfn::dets;
+    using Wfn::dict;
+
+public:
+    DOCIWfn(const DOCIWfn &);
+
+    DOCIWfn(const DOCIWfn &&) noexcept;
+
+    DOCIWfn(const std::string &);
+
+    DOCIWfn(const int_t, const int_t, const int_t);
+
+    DOCIWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
+
+    DOCIWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
+};
+
+struct FullCIWfn final : public TwoSpinWfn {
+public:
+    using Wfn::maxrank_dn;
+    using Wfn::maxrank_up;
+    using Wfn::nbasis;
+    using Wfn::ndet;
+    using Wfn::nocc;
+    using Wfn::nocc_dn;
+    using Wfn::nocc_up;
+    using Wfn::nvir;
+    using Wfn::nvir_dn;
+    using Wfn::nvir_up;
+    using Wfn::nword;
+    using Wfn::nword2;
+
+protected:
+    using Wfn::dets;
+    using Wfn::dict;
+
+public:
+    FullCIWfn(const FullCIWfn &);
+
+    FullCIWfn(const FullCIWfn &&) noexcept;
+
+    FullCIWfn(const DOCIWfn &);
+
+    FullCIWfn(const std::string &);
+
+    FullCIWfn(const int_t, const int_t, const int_t);
+
+    FullCIWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
+
+    FullCIWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
+};
+
+struct GenCIWfn final : public OneSpinWfn {
+public:
+    using Wfn::maxrank_dn;
+    using Wfn::maxrank_up;
+    using Wfn::nbasis;
+    using Wfn::ndet;
+    using Wfn::nocc;
+    using Wfn::nocc_dn;
+    using Wfn::nocc_up;
+    using Wfn::nvir;
+    using Wfn::nvir_dn;
+    using Wfn::nvir_up;
+    using Wfn::nword;
+    using Wfn::nword2;
+
+protected:
+    using Wfn::dets;
+    using Wfn::dict;
+
+public:
+    GenCIWfn(const GenCIWfn &);
+
+    GenCIWfn(const GenCIWfn &&) noexcept;
+
+    GenCIWfn(const DOCIWfn &);
+
+    GenCIWfn(const FullCIWfn &);
+
+    GenCIWfn(const std::string &);
+
+    GenCIWfn(const int_t, const int_t, const int_t);
+
+    GenCIWfn(const int_t, const int_t, const int_t, const int_t, const uint_t *);
+
+    GenCIWfn(const int_t, const int_t, const int_t, const int_t, const int_t *);
+};
+
+/* Sparse matrix operator class. */
+
+struct SparseOp {
+public:
+    int_t nrow, ncol, size;
+    double ecore;
+
+protected:
+    std::vector<double> data;
+    std::vector<int_t> indices;
+    std::vector<int_t> indptr;
+
+public:
+    SparseOp(const SparseOp &);
+
+    SparseOp(const SparseOp &&) noexcept;
+
+    SparseOp(const int_t, const int_t);
+
+    SparseOp(const Ham &, const DOCIWfn &, const int_t, const int_t);
+
+    SparseOp(const Ham &, const FullCIWfn &, const int_t, const int_t);
+
+    SparseOp(const Ham &, const GenCIWfn &, const int_t, const int_t);
+
+    inline const double *data_ptr(const int_t index) const {
+        return &data[index];
+    }
+
+    inline const int_t *indices_ptr(const int_t index) const {
+        return &indices[index];
+    }
+
+    inline const int_t *indptr_ptr(const int_t index) const {
+        return &indptr[index];
+    }
+
+    double get_element(const int_t, const int_t) const;
+
+    void perform_op(const double *, double *) const;
+
+    void perform_op_cepa0(const double *, double *, const int_t) const;
+
+    void perform_op_transpose_cepa0(const double *, double *, const int_t) const;
+
+    void rhs_cepa0(double *, const int_t) const;
+
+protected:
+    template<class WfnType>
+    void init(const Ham &, const WfnType &, const int_t, const int_t);
+
+    void init_thread_sort_row(const int_t);
+
+    void init_thread_condense(SparseOp &, const int_t);
+
+    void init_thread_add_row(const Ham &, const DOCIWfn &, const int_t, uint_t *, int_t *, int_t *);
+
+    void init_thread_add_row(const Ham &, const FullCIWfn &, const int_t, uint_t *, int_t *,
+                             int_t *);
+
+    void init_thread_add_row(const Ham &, const GenCIWfn &, const int_t, uint_t *, int_t *,
+                             int_t *);
 };
 
 } // namespace pyci
