@@ -22,10 +22,6 @@
 #include <string>
 #include <vector>
 
-/* Uncomment this to use exact (colexicographical order) hashing.
- * This will not work for systems where binomial(nbasis, nocc) > 2 ** 63. */
-/* #define PYCI_EXACT_HASH */
-
 /* Define integer types, popcnt and ctz functions. */
 #define PYCI_INT_SIZE (std::int64_t)(sizeof(std::int64_t) * CHAR_BIT)
 #define PYCI_UINT_SIZE (std::int64_t)(sizeof(std::uint64_t) * CHAR_BIT)
@@ -62,8 +58,6 @@ using hashmap = phmap::flat_hash_map<KeyType, ValueType>;
 
 /* Forward-declare classes. */
 struct Ham;
-struct RstHam;
-struct GenHam;
 struct Wfn;
 struct OneSpinWfn;
 struct TwoSpinWfn;
@@ -120,12 +114,33 @@ double compute_overlap(const OneSpinWfn &, const OneSpinWfn &, const double *, c
 
 double compute_overlap(const TwoSpinWfn &, const TwoSpinWfn &, const double *, const double *);
 
+int_t add_hci(const Ham &, DOCIWfn &, const double *, const double);
+
+int_t add_hci(const Ham &, FullCIWfn &, const double *, const double);
+
+int_t add_hci(const Ham &, GenCIWfn &, const double *, const double);
+
 /* Hamiltonian classes. */
 
 struct Ham {
 public:
     int_t nbasis;
     double ecore, *one_mo, *two_mo, *h, *v, *w;
+
+    inline Ham(void) {
+    }
+
+    inline Ham(const Ham &ham)
+        : nbasis(ham.nbasis), ecore(ham.ecore), one_mo(ham.one_mo), two_mo(ham.two_mo), h(ham.h),
+          v(ham.v), w(ham.w) {
+    }
+
+    inline Ham(Ham &&ham) noexcept
+        : nbasis(std::exchange(ham.nbasis, 0)), ecore(std::exchange(ham.ecore, 0.0)),
+          one_mo(std::exchange(ham.one_mo, nullptr)), two_mo(std::exchange(ham.two_mo, nullptr)),
+          h(std::exchange(ham.h, nullptr)), v(std::exchange(ham.v, nullptr)),
+          w(std::exchange(ham.w, nullptr)) {
+    }
 };
 
 /* Wave function classes. */
@@ -398,7 +413,7 @@ public:
 
 /* Sparse matrix operator class. */
 
-struct SparseOp {
+struct SparseOp final {
 public:
     int_t nrow, ncol, size;
     double ecore;

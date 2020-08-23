@@ -22,6 +22,17 @@
 
 namespace pyci {
 
+SparseOp::SparseOp(const SparseOp &op)
+    : nrow(op.nrow), ncol(op.ncol), size(op.size), ecore(op.ecore), data(op.data),
+      indices(op.indices), indptr(op.indptr) {
+}
+
+SparseOp::SparseOp(const SparseOp &&op) noexcept
+    : nrow(std::exchange(op.nrow, 0)), ncol(std::exchange(op.ncol, 0)),
+      size(std::exchange(op.size, 0)), ecore(std::exchange(op.ecore, 0.0)),
+      data(std::move(op.data)), indices(std::move(op.indices)), indptr(std::move(op.indptr)) {
+}
+
 SparseOp::SparseOp(const int_t rows, const int_t cols)
     : nrow(rows), ncol(cols), size(0), ecore(0.0) {
     indptr.push_back(0);
@@ -147,9 +158,8 @@ void SparseOp::init(const Ham &ham, const WfnType &wfn, const int_t rows, const 
         int_t start = omp_get_thread_num() * chunksize;
         int_t end = (start + chunksize < nrow) ? start + chunksize : nrow;
         int_t row = 0;
-        // prepare working vectors
         SparseOp op(end - start, ncol);
-        std::vector<uint_t> det(wfn.nword * 2);
+        std::vector<uint_t> det(wfn.nword2);
         std::vector<int_t> occs(wfn.nocc);
         std::vector<int_t> virs(wfn.nvir);
         for (int_t i = start; i < end; ++i) {
@@ -245,9 +255,9 @@ void SparseOp::init_thread_add_row(const Ham &ham, const FullCIWfn &wfn, const i
     int_t n2 = n1 * n1;
     int_t n3 = n1 * n2;
     double val1, val2 = 0.0;
-    uint_t *det_dn = det_up + wfn.nword;
-    const uint_t *rdet_up = &wfn.dets[idet * wfn.nword2];
+    const uint_t *rdet_up = wfn.det_ptr(idet);
     const uint_t *rdet_dn = rdet_up + wfn.nword;
+    uint_t *det_dn = det_up + wfn.nword;
     int_t *occs_dn = occs_up + wfn.nocc_up;
     int_t *virs_dn = virs_up + wfn.nvir_up;
     std::memcpy(det_up, rdet_up, sizeof(uint_t) * wfn.nword2);
@@ -412,7 +422,7 @@ void SparseOp::init_thread_add_row(const Ham &ham, const GenCIWfn &wfn, const in
     int_t n2 = n1 * n1;
     int_t n3 = n1 * n2;
     double val1, val2 = 0.0;
-    const uint_t *rdet = &wfn.dets[idet * wfn.nword];
+    const uint_t *rdet = wfn.det_ptr(idet);
     // fill working vectors
     std::memcpy(det, rdet, sizeof(uint_t) * wfn.nword);
     fill_occs(wfn.nword, rdet, occs);
