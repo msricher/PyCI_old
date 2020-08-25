@@ -72,6 +72,8 @@ int_t binomial(int_t, int_t);
 
 int_t binomial_cutoff(int_t, int_t);
 
+void fill_hartreefock_det(int_t, uint_t *);
+
 void fill_det(const int_t, const int_t *, uint_t *);
 
 void fill_occs(const int_t, const uint_t *, int_t *);
@@ -110,15 +112,27 @@ inline void clearbit_det(const int_t i, uint_t *det) {
     det[i / PYCI_UINT_SIZE] &= ~(PYCI_UINT_ONE << (i % PYCI_UINT_SIZE));
 }
 
-double compute_overlap(const OneSpinWfn &, const OneSpinWfn &, const double *, const double *);
-
-double compute_overlap(const TwoSpinWfn &, const TwoSpinWfn &, const double *, const double *);
-
 int_t add_hci(const Ham &, DOCIWfn &, const double *, const double);
 
 int_t add_hci(const Ham &, FullCIWfn &, const double *, const double);
 
 int_t add_hci(const Ham &, GenCIWfn &, const double *, const double);
+
+double compute_overlap(const OneSpinWfn &, const OneSpinWfn &, const double *, const double *);
+
+double compute_overlap(const TwoSpinWfn &, const TwoSpinWfn &, const double *, const double *);
+
+void compute_rdms(const DOCIWfn &, const double *, double *, double *);
+
+void compute_rdms(const FullCIWfn &, const double *, double *, double *);
+
+void compute_rdms(const GenCIWfn &, const double *, double *, double *);
+
+double compute_enpt2(const Ham &, const DOCIWfn &, const double *, const double, const double);
+
+double compute_enpt2(const Ham &, const FullCIWfn &, const double *, const double, const double);
+
+double compute_enpt2(const Ham &, const GenCIWfn &, const double *, const double, const double);
 
 /* Hamiltonian classes. */
 
@@ -157,7 +171,7 @@ protected:
 public:
     Wfn(const Wfn &);
 
-    Wfn(const Wfn &&) noexcept;
+    Wfn(Wfn &&) noexcept;
 
     inline Wfn(const int_t nb, const int_t nu, const int_t nd) {
         init(nb, nu, nd);
@@ -426,7 +440,7 @@ protected:
 public:
     SparseOp(const SparseOp &);
 
-    SparseOp(const SparseOp &&) noexcept;
+    SparseOp(SparseOp &&) noexcept;
 
     SparseOp(const int_t, const int_t);
 

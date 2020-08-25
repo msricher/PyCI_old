@@ -27,7 +27,7 @@ Wfn::Wfn(const Wfn &wfn)
       dict(wfn.dict) {
 }
 
-Wfn::Wfn(const Wfn &&wfn) noexcept
+Wfn::Wfn(Wfn &&wfn) noexcept
     : nbasis(std::exchange(wfn.nbasis, 0)), nocc(std::exchange(wfn.nocc, 0)),
       nocc_up(std::exchange(wfn.nocc_up, 0)), nocc_dn(std::exchange(wfn.nocc_dn, 0)),
       nvir(std::exchange(wfn.nvir, 0)), nvir_up(std::exchange(wfn.nvir_up, 0)),

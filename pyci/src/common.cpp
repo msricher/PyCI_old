@@ -52,6 +52,16 @@ int_t binomial_cutoff(int_t n, int_t k) {
     return binom;
 }
 
+void fill_hartreefock_det(int_t nocc, uint_t *det) {
+    int_t i = 0;
+    while (nocc >= PYCI_UINT_SIZE) {
+        det[i++] = PYCI_UINT_MAX;
+        nocc -= PYCI_UINT_SIZE;
+    }
+    if (nocc)
+        det[i] = (PYCI_UINT_ONE << nocc) - 1;
+}
+
 void fill_det(const int_t nocc, const int_t *occs, uint_t *det) {
     int_t j;
     for (int_t i = 0; i < nocc; ++i) {

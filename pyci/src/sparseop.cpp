@@ -27,7 +27,7 @@ SparseOp::SparseOp(const SparseOp &op)
       indices(op.indices), indptr(op.indptr) {
 }
 
-SparseOp::SparseOp(const SparseOp &&op) noexcept
+SparseOp::SparseOp(SparseOp &&op) noexcept
     : nrow(std::exchange(op.nrow, 0)), ncol(std::exchange(op.ncol, 0)),
       size(std::exchange(op.size, 0)), ecore(std::exchange(op.ecore, 0.0)),
       data(std::move(op.data)), indices(std::move(op.indices)), indptr(std::move(op.indptr)) {
@@ -185,7 +185,7 @@ void SparseOp::init_thread_sort_row(const int_t idet) {
 }
 
 void SparseOp::init_thread_condense(SparseOp &op, const int_t ithread) {
-    int_t i, start;
+    int_t i, start, end;
     if (!ithread) {
         op.data.swap(data);
         op.indptr.swap(indptr);
@@ -203,7 +203,8 @@ void SparseOp::init_thread_condense(SparseOp &op, const int_t ithread) {
         std::vector<int_t>().swap(indices);
         // copy over indptr array
         start = op.indptr.back();
-        for (i = 1; i < indptr.size(); ++i)
+        end = indptr.size();
+        for (i = 1; i < end; ++i)
             op.indptr.push_back(indptr[i] + start);
         std::vector<int_t>().swap(indptr);
     }
