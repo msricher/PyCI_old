@@ -25,13 +25,15 @@ from pyci import hamiltonian
 from pyci.test import datafile
 
 
-# def test_restricted_raises():
-#     npt.assert_raises(
-#         ValueError, hamiltonian, 1.0, np.zeros((10, 11)), np.zeros((10, 10, 10, 10))
-#     )
-#     npt.assert_raises(
-#         ValueError, hamiltonian, 1.0, np.zeros((10, 10)), np.zeros((10, 10, 10, 11))
-#     )
+
+def test_restricted_raises():
+  npt.assert_raises(
+        ValueError, hamiltonian, 1.0, np.zeros((10, 11)), np.zeros((10, 10, 10, 10))
+    )
+    npt.assert_raises(
+        ValueError, hamiltonian, 1.0, np.zeros((10, 10)), np.zeros((10, 10, 10, 11))
+    )
+
 
 
 @pytest.mark.parametrize("filename", ["he_ccpvqz", "be_ccpvdz", "h2o_ccpvdz", "li2_ccpvdz"])
@@ -41,6 +43,7 @@ def test_to_from_file(filename):
     ham1 = hamiltonian(datafile("{0:s}.fcidump".format(filename)))
     ham1.to_file(file1.name)
     ham2 = hamiltonian(file1.name)
+
     ham2.to_file(file2.name)
     assert compare(file1.name, file2.name, shallow=False)
     npt.assert_allclose(ham2.ecore, ham1.ecore, rtol=0.0, atol=1.0e-12)
