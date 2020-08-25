@@ -363,6 +363,7 @@ PYBIND11_MODULE(pyci, m) {
 
     py::class_<PyHam> hamiltonian(m, "hamiltonian");
     hamiltonian.doc() = "Hamiltonian class.";
+
     hamiltonian.def_readonly("nbasis", &Ham::nbasis);
     hamiltonian.def_readonly("ecore", &Ham::ecore);
     hamiltonian.def_readonly("one_mo", &PyHam::one_mo_array);
@@ -567,6 +568,12 @@ PYBIND11_MODULE(pyci, m) {
 
     py::class_<SparseOp> sparse_op(m, "sparse_op");
     sparse_op.doc() = "Sparse CI matrix operator class.";
+
+    sparse_op.def_readonly("ecore", &SparseOp::ecore);
+    sparse_op.def_readonly("size", &SparseOp::size);
+
+    sparse_op.def_property_readonly(
+        "shape", [](const SparseOp &op) { return py::make_tuple(op.nrow, op.ncol); });
 
     sparse_op.def(py::init<const Ham &, const DOCIWfn &, const int_t, const int_t>(),
                   py::arg("ham"), py::arg("wfn"), py::arg("nrow") = -1, py::arg("ncol") = -1);
