@@ -43,11 +43,11 @@ void Wfn::squeeze(void) {
 
 void Wfn::init(const int_t nb, const int_t nu, const int_t nd) {
     if (nd < 0)
-        throw std::runtime_error("nocc_dn is < 0");
+        throw std::domain_error("nocc_dn is < 0");
     else if (nu < nd)
-        throw std::runtime_error("nocc_up is < nocc_dn");
+        throw std::domain_error("nocc_up is < nocc_dn");
     else if (nb < nu)
-        throw std::runtime_error("nbasis is < nocc_up");
+        throw std::domain_error("nbasis is < nocc_up");
     nbasis = nb;
     nocc = nu + nd;
     nocc_up = nu;

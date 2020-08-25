@@ -218,15 +218,15 @@ void SparseOp::init_thread_add_row(const Ham &ham, const DOCIWfn &wfn, const int
     fill_occs(wfn.nword, det, occs);
     fill_virs(wfn.nword, wfn.nbasis, det, virs);
     // loop over occupied indices
-    for (i = 0; i < wfn.nocc; ++i) {
+    for (i = 0; i < wfn.nocc_up; ++i) {
         k = occs[i];
         // compute part of diagonal matrix element
         val1 += ham.v[k * (wfn.nbasis + 1)];
         val2 += ham.h[k];
-        for (j = i + 1; j < wfn.nocc; ++j)
+        for (j = i + 1; j < wfn.nocc_up; ++j)
             val2 += ham.w[k * wfn.nbasis + occs[j]];
         // loop over virtual indices
-        for (j = 0; j < wfn.nvir; ++j) {
+        for (j = 0; j < wfn.nvir_up; ++j) {
             // compute single/"pair"-excited elements
             l = virs[j];
             excite_det(k, l, &det[0]);

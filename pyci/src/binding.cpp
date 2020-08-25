@@ -74,21 +74,7 @@ u_array_t onespinwfn_to_det_array(const OneSpinWfn &wfn, int_t start, int_t end)
         start = 0;
     }
     u_array_t array({end - start, wfn.nword});
-    wfn.to_occ_array(start, end, reinterpret_cast<int_t *>(array.request().ptr));
-    return array;
-}
-
-i_array_t onespinwfn_to_occ_array(const OneSpinWfn &wfn, int_t start, int_t end) {
-    if (start == -1) {
-        start = 0;
-        if (end == -1)
-            end = wfn.ndet;
-    } else if (end == -1) {
-        end = start;
-        start = 0;
-    }
-    i_array_t array({end - start, wfn.nocc_up});
-    wfn.to_occ_array(start, end, reinterpret_cast<int_t *>(array.request().ptr));
+    wfn.to_det_array(start, end, reinterpret_cast<uint_t *>(array.request().ptr));
     return array;
 }
 
@@ -102,6 +88,20 @@ u_array_t twospinwfn_to_det_array(const TwoSpinWfn &wfn, int_t start, int_t end)
         start = 0;
     }
     u_array_t array({end - start, static_cast<int_t>(2), wfn.nword});
+    wfn.to_det_array(start, end, reinterpret_cast<uint_t *>(array.request().ptr));
+    return array;
+}
+
+i_array_t onespinwfn_to_occ_array(const OneSpinWfn &wfn, int_t start, int_t end) {
+    if (start == -1) {
+        start = 0;
+        if (end == -1)
+            end = wfn.ndet;
+    } else if (end == -1) {
+        end = start;
+        start = 0;
+    }
+    i_array_t array({end - start, wfn.nocc_up});
     wfn.to_occ_array(start, end, reinterpret_cast<int_t *>(array.request().ptr));
     return array;
 }
@@ -144,20 +144,37 @@ int_t twospinwfn_add_det(TwoSpinWfn &wfn, const u_array_t det) {
     return wfn.add_det(reinterpret_cast<const uint_t *>(det.request().ptr));
 }
 
-int_t onespinwfn_add_excited_dets(OneSpinWfn &wfn, const int_t exc, const u_array_t ref) {
+int_t onespinwfn_add_excited_dets(OneSpinWfn &wfn, const int_t exc, const py::object ref) {
+    std::vector<uint_t> v_ref;
+    uint_t *ptr;
+    if (ref.is(py::none())) {
+        v_ref.resize(wfn.nword);
+        ptr = &v_ref[0];
+        fill_hartreefock_det(wfn.nocc_up, ptr);
+    } else
+        ptr = reinterpret_cast<uint_t *>(ref.cast<u_array_t>().request().ptr);
     int_t ndet_old = wfn.ndet;
-    wfn.add_excited_dets(reinterpret_cast<const uint_t *>(ref.request().ptr), exc);
+    wfn.add_excited_dets(ptr, exc);
     return wfn.ndet - ndet_old;
 }
 
-int_t twospinwfn_add_excited_dets(TwoSpinWfn &wfn, const int_t exc, const u_array_t ref) {
+int_t twospinwfn_add_excited_dets(TwoSpinWfn &wfn, const int_t exc, const py::object ref) {
+    std::vector<uint_t> v_ref;
+    uint_t *ptr;
+    if (ref.is(py::none())) {
+        v_ref.resize(wfn.nword2);
+        ptr = &v_ref[0];
+        fill_hartreefock_det(wfn.nocc_up, ptr);
+        fill_hartreefock_det(wfn.nocc_dn, ptr + wfn.nword);
+    } else
+        ptr = reinterpret_cast<uint_t *>(ref.cast<u_array_t>().request().ptr);
     int_t ndet_old = wfn.ndet;
     int_t maxup = (wfn.nocc_up < wfn.nvir_up) ? wfn.nocc_up : wfn.nvir_up;
     int_t maxdn = (wfn.nocc_dn < wfn.nvir_dn) ? wfn.nocc_dn : wfn.nvir_dn;
     int_t a = (exc < maxup) ? exc : maxup;
     int_t b = exc - a;
     while ((a >= 0) && (b <= maxdn))
-        wfn.add_excited_dets(reinterpret_cast<const uint_t *>(ref.request().ptr), a--, b++);
+        wfn.add_excited_dets(ptr, a--, b++);
     return wfn.ndet - ndet_old;
 }
 
@@ -206,6 +223,16 @@ d_array_t sparse_op_rhs_cepa0(const SparseOp &op, const int_t refind) {
 /*
 Section: Other Python interface functions
 */
+
+int_t py_popcnt(const u_array_t det) {
+    py::buffer_info buf = det.request();
+    return popcnt_det(buf.shape[0], reinterpret_cast<const uint_t *>(buf.ptr));
+}
+
+int_t py_ctz(const u_array_t det) {
+    py::buffer_info buf = det.request();
+    return ctz_det(buf.shape[0], reinterpret_cast<const uint_t *>(buf.ptr));
+}
 
 int_t dociwfn_add_hci(const Ham &ham, DOCIWfn &wfn, const d_array_t coeffs, const double eps) {
     return add_hci(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr), eps);
@@ -361,11 +388,13 @@ PYBIND11_MODULE(pyci, m) {
     Section: Hamiltonian class
     */
 
-    py::class_<PyHam> hamiltonian(m, "hamiltonian");
+    py::class_<Ham> base_ham(m, "__base_ham");
+    base_ham.def_readonly("nbasis", &Ham::nbasis);
+    base_ham.def_readonly("ecore", &Ham::ecore);
+
+    py::class_<PyHam, Ham> hamiltonian(m, "hamiltonian");
     hamiltonian.doc() = "Hamiltonian class.";
 
-    hamiltonian.def_readonly("nbasis", &Ham::nbasis);
-    hamiltonian.def_readonly("ecore", &Ham::ecore);
     hamiltonian.def_readonly("one_mo", &PyHam::one_mo_array);
     hamiltonian.def_readonly("two_mo", &PyHam::two_mo_array);
     hamiltonian.def_readonly("h", &PyHam::h_array);
@@ -431,7 +460,7 @@ PYBIND11_MODULE(pyci, m) {
     one_spin_wfn.def("add_all_dets", &OneSpinWfn::add_all_dets);
 
     one_spin_wfn.def("add_excited_dets", &onespinwfn_add_excited_dets, py::arg("exc"),
-                     py::arg("ref"));
+                     py::arg("ref") = py::none());
 
     one_spin_wfn.def("add_dets_from_wfn", &OneSpinWfn::add_dets_from_wfn, py::arg("wfn"));
 
@@ -469,7 +498,7 @@ PYBIND11_MODULE(pyci, m) {
     two_spin_wfn.def("add_all_dets", &TwoSpinWfn::add_all_dets);
 
     two_spin_wfn.def("add_excited_dets", &twospinwfn_add_excited_dets, py::arg("exc"),
-                     py::arg("ref"));
+                     py::arg("ref") = py::none());
 
     two_spin_wfn.def("add_dets_from_wfn", &TwoSpinWfn::add_dets_from_wfn, py::arg("wfn"));
 
@@ -482,25 +511,28 @@ PYBIND11_MODULE(pyci, m) {
     py::class_<DOCIWfn, OneSpinWfn> doci_wfn(m, "doci_wfn");
     doci_wfn.doc() = "DOCI wave function class.";
 
-    doci_wfn.def(py::init<const DOCIWfn &>());
+    doci_wfn.def(py::init<const DOCIWfn &>(), py::arg("wfn"));
 
-    doci_wfn.def(py::init<const std::string &>());
+    doci_wfn.def(py::init<const std::string &>(), py::arg("filename"));
 
-    doci_wfn.def(py::init<const int_t, const int_t, const int_t>());
+    doci_wfn.def(py::init<const int_t, const int_t, const int_t>(), py::arg("nbasis"),
+                 py::arg("nocc_up"), py::arg("nocc_dn"));
 
-    doci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const u_array_t array) {
-            py::buffer_info buf = array.request();
-            return DOCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                           reinterpret_cast<const uint_t *>(buf.ptr));
-        }));
+    doci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                             const u_array_t array) {
+                     py::buffer_info buf = array.request();
+                     return DOCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                    reinterpret_cast<const uint_t *>(buf.ptr));
+                 }),
+                 py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
-    doci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const i_array_t array) {
-            py::buffer_info buf = array.request();
-            return DOCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                           reinterpret_cast<const int_t *>(buf.ptr));
-        }));
+    doci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                             const i_array_t array) {
+                     py::buffer_info buf = array.request();
+                     return DOCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                    reinterpret_cast<const int_t *>(buf.ptr));
+                 }),
+                 py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
     /*
     Section: FullCI wave function class
@@ -509,27 +541,29 @@ PYBIND11_MODULE(pyci, m) {
     py::class_<FullCIWfn, TwoSpinWfn> fullci_wfn(m, "fullci_wfn");
     fullci_wfn.doc() = "FullCI wave function class.";
 
-    fullci_wfn.def(py::init<const DOCIWfn &>());
+    fullci_wfn.def(py::init<const DOCIWfn &>(), py::arg("wfn"));
+    fullci_wfn.def(py::init<const FullCIWfn &>(), py::arg("wfn"));
 
-    fullci_wfn.def(py::init<const FullCIWfn &>());
+    fullci_wfn.def(py::init<const std::string &>(), py::arg("filename"));
 
-    fullci_wfn.def(py::init<const std::string &>());
+    fullci_wfn.def(py::init<const int_t, const int_t, const int_t>(), py::arg("nbasis"),
+                   py::arg("nocc_up"), py::arg("nocc_dn"));
 
-    fullci_wfn.def(py::init<const int_t, const int_t, const int_t>());
+    fullci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                               const u_array_t array) {
+                       py::buffer_info buf = array.request();
+                       return FullCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                        reinterpret_cast<const uint_t *>(buf.ptr));
+                   }),
+                   py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
-    fullci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const u_array_t array) {
-            py::buffer_info buf = array.request();
-            return FullCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                             reinterpret_cast<const uint_t *>(buf.ptr));
-        }));
-
-    fullci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const i_array_t array) {
-            py::buffer_info buf = array.request();
-            return FullCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                             reinterpret_cast<const int_t *>(buf.ptr));
-        }));
+    fullci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                               const i_array_t array) {
+                       py::buffer_info buf = array.request();
+                       return FullCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                        reinterpret_cast<const int_t *>(buf.ptr));
+                   }),
+                   py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
     /*
     Section: GenCI wave function class
@@ -538,29 +572,30 @@ PYBIND11_MODULE(pyci, m) {
     py::class_<GenCIWfn, OneSpinWfn> genci_wfn(m, "genci_wfn");
     genci_wfn.doc() = "Generalized CI wave function class.";
 
-    genci_wfn.def(py::init<const DOCIWfn &>());
+    genci_wfn.def(py::init<const DOCIWfn &>(), py::arg("wfn"));
+    genci_wfn.def(py::init<const FullCIWfn &>(), py::arg("wfn"));
+    genci_wfn.def(py::init<const GenCIWfn &>(), py::arg("wfn"));
 
-    genci_wfn.def(py::init<const FullCIWfn &>());
+    genci_wfn.def(py::init<const std::string &>(), py::arg("filename"));
 
-    genci_wfn.def(py::init<const GenCIWfn &>());
+    genci_wfn.def(py::init<const int_t, const int_t, const int_t>(), py::arg("nbasis"),
+                  py::arg("nocc_up"), py::arg("nocc_dn"));
 
-    genci_wfn.def(py::init<const std::string &>());
+    genci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                              const u_array_t array) {
+                      py::buffer_info buf = array.request();
+                      return GenCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                      reinterpret_cast<const uint_t *>(buf.ptr));
+                  }),
+                  py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
-    genci_wfn.def(py::init<const int_t, const int_t, const int_t>());
-
-    genci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const u_array_t array) {
-            py::buffer_info buf = array.request();
-            return GenCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                            reinterpret_cast<const uint_t *>(buf.ptr));
-        }));
-
-    genci_wfn.def(py::init(
-        [](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn, const i_array_t array) {
-            py::buffer_info buf = array.request();
-            return GenCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
-                            reinterpret_cast<const int_t *>(buf.ptr));
-        }));
+    genci_wfn.def(py::init([](const int_t nbasis, const int_t nocc_up, const int_t nocc_dn,
+                              const i_array_t array) {
+                      py::buffer_info buf = array.request();
+                      return GenCIWfn(nbasis, nocc_up, nocc_dn, buf.shape[0],
+                                      reinterpret_cast<const int_t *>(buf.ptr));
+                  }),
+                  py::arg("nbasis"), py::arg("nocc_up"), py::arg("nocc_dn"), py::arg("array"));
 
     /*
     Section: Sparse CI matrix operator class
@@ -584,32 +619,89 @@ PYBIND11_MODULE(pyci, m) {
     sparse_op.def(py::init<const Ham &, const GenCIWfn &, const int_t, const int_t>(),
                   py::arg("ham"), py::arg("wfn"), py::arg("nrow") = -1, py::arg("ncol") = -1);
 
-    sparse_op.def("__call__", &sparse_op_matvec);
+    sparse_op.def("__call__", &sparse_op_matvec, py::arg("x"));
 
-    sparse_op.def("matvec_cepa0", &sparse_op_matvec_cepa0);
+    sparse_op.def("get_element", &SparseOp::get_element, py::arg("i"), py::arg("j"));
 
-    sparse_op.def("rmatvec_cepa0", &sparse_op_rmatvec_cepa0);
+    sparse_op.def("matvec_cepa0", &sparse_op_matvec_cepa0, py::arg("x"), py::arg("refind") = 0);
 
-    sparse_op.def("rhs_cepa0", &sparse_op_rhs_cepa0);
+    sparse_op.def("rmatvec_cepa0", &sparse_op_rmatvec_cepa0, py::arg("x"), py::arg("refind") = 0);
+
+    sparse_op.def("rhs_cepa0", &sparse_op_rhs_cepa0, py::arg("refind") = 0);
 
     /*
     Section: Free functions
     */
 
-    m.def("add_hci", &dociwfn_add_hci);
-    m.def("add_hci", &fullciwfn_add_hci);
-    m.def("add_hci", &genciwfn_add_hci);
+    m.def("set_num_threads", &omp_set_num_threads, py::arg("nthread"));
 
-    m.def("compute_overlap", &dociwfn_compute_overlap);
-    m.def("compute_overlap", &fullciwfn_compute_overlap);
-    m.def("compute_overlap", &genciwfn_compute_overlap);
+    m.def("get_num_threads", &omp_get_max_threads);
 
-    m.def("compute_rdms", &dociwfn_compute_rdms);
-    m.def("compute_rdms", &fullciwfn_compute_rdms);
-    m.def("compute_rdms", &genciwfn_compute_rdms);
+    m.def("popcnt", &py_popcnt, py::arg("det"));
+    m.def("ctz", &py_ctz, py::arg("det"));
 
-    m.def("compute_enpt2", &dociwfn_compute_enpt2);
-    m.def("compute_enpt2", &fullciwfn_compute_enpt2);
-    m.def("compute_enpt2", &genciwfn_compute_enpt2);
+    m.def(
+        "add_hci",
+        [](const PyHam &ham, DOCIWfn &wfn, const d_array_t coeffs, const double eps) {
+            return add_hci(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr), eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("eps") = 1.0e-5);
+
+    m.def(
+        "add_hci",
+        [](const PyHam &ham, FullCIWfn &wfn, const d_array_t coeffs, const double eps) {
+            return add_hci(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr), eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("eps") = 1.0e-5);
+
+    m.def(
+        "add_hci",
+        [](const PyHam &ham, GenCIWfn &wfn, const d_array_t coeffs, const double eps) {
+            return add_hci(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr), eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("eps") = 1.0e-5);
+
+    m.def("compute_overlap", &dociwfn_compute_overlap, py::arg("wfn1"), py::arg("wfn2"),
+          py::arg("coeffs1"), py::arg("coeffs2"));
+
+    m.def("compute_overlap", &fullciwfn_compute_overlap, py::arg("wfn1"), py::arg("wfn2"),
+          py::arg("coeffs1"), py::arg("coeffs2"));
+
+    m.def("compute_overlap", &genciwfn_compute_overlap, py::arg("wfn1"), py::arg("wfn2"),
+          py::arg("coeffs1"), py::arg("coeffs2"));
+
+    m.def("compute_rdms", &dociwfn_compute_rdms, py::arg("wfn"), py::arg("coeff"));
+    m.def("compute_rdms", &fullciwfn_compute_rdms, py::arg("wfn"), py::arg("coeff"));
+    m.def("compute_rdms", &genciwfn_compute_rdms, py::arg("wfn"), py::arg("coeff"));
+
+    m.def(
+        "compute_enpt2",
+        [](const PyHam &ham, DOCIWfn &wfn, const d_array_t coeffs, const double energy,
+           const double eps) {
+            return compute_enpt2(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr),
+                                 energy, eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("energy"),
+        py::arg("eps") = 1.0e-5);
+
+    m.def(
+        "compute_enpt2",
+        [](const PyHam &ham, FullCIWfn &wfn, const d_array_t coeffs, const double energy,
+           const double eps) {
+            return compute_enpt2(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr),
+                                 energy, eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("energy"),
+        py::arg("eps") = 1.0e-5);
+
+    m.def(
+        "compute_enpt2",
+        [](const PyHam &ham, GenCIWfn &wfn, const d_array_t coeffs, const double energy,
+           const double eps) {
+            return compute_enpt2(ham, wfn, reinterpret_cast<const double *>(coeffs.request().ptr),
+                                 energy, eps);
+        },
+        py::arg("ham"), py::arg("wfn"), py::arg("coeffs"), py::arg("energy"),
+        py::arg("eps") = 1.0e-5);
 
 } // PYBIND_MODULE

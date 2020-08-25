@@ -35,7 +35,7 @@ namespace pyci {
 OneSpinWfn::OneSpinWfn(const OneSpinWfn &wfn) : Wfn(wfn) {
 }
 
-OneSpinWfn::OneSpinWfn(const OneSpinWfn &&wfn) noexcept : Wfn(wfn) {
+OneSpinWfn::OneSpinWfn(OneSpinWfn &&wfn) noexcept : Wfn(wfn) {
 }
 
 OneSpinWfn::OneSpinWfn(const std::string &filename) {
@@ -47,6 +47,7 @@ OneSpinWfn::OneSpinWfn(const std::string &filename) {
         if (!(file.read((char *)&n, sizeof(int_t)) && file.read((char *)&nb, sizeof(int_t)) &&
               file.read((char *)&nu, sizeof(int_t)) && file.read((char *)&nd, sizeof(int_t))))
             break;
+        nword = nword_det(nb);
         dets.resize(nword * n);
         if (file.read((char *)&dets[0], sizeof(uint_t) * nword * n))
             failed = false;

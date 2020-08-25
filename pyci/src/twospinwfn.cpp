@@ -34,7 +34,7 @@ namespace pyci {
 TwoSpinWfn::TwoSpinWfn(const TwoSpinWfn &wfn) : Wfn(wfn) {
 }
 
-TwoSpinWfn::TwoSpinWfn(const TwoSpinWfn &&wfn) noexcept : Wfn(wfn) {
+TwoSpinWfn::TwoSpinWfn(TwoSpinWfn &&wfn) noexcept : Wfn(wfn) {
 }
 
 TwoSpinWfn::TwoSpinWfn(const std::string &filename) {
@@ -46,6 +46,7 @@ TwoSpinWfn::TwoSpinWfn(const std::string &filename) {
         if (!(file.read((char *)&n, sizeof(int_t)) && file.read((char *)&nb, sizeof(int_t)) &&
               file.read((char *)&nu, sizeof(int_t)) && file.read((char *)&nd, sizeof(int_t))))
             break;
+        nword2 = nword_det(nb) * 2;
         dets.resize(nword2 * n);
         if (file.read((char *)&dets[0], sizeof(uint_t) * nword2 * n))
             failed = false;

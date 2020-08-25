@@ -28,11 +28,12 @@ __all__ = [
 ]
 
 
-def _load_ham(*args: Union[Tuple[float, np.ndarray, np.ndarray], Tuple[str]]) \
-        -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray,np.ndarray]:
+def _load_ham(
+    *args: Union[Tuple[float, np.ndarray, np.ndarray], Tuple[str]]
+) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     r"""Helper function for loading a PyCI Hamiltonian instance."""
     ecore, one_mo, two_mo = read_fcidump(*args) if len(args) == 1 else args
-    h, v, w = make_senzero_integrals(ecore, one_mo, two_mo)
+    h, v, w = make_senzero_integrals(one_mo, two_mo)
     return ecore, one_mo, two_mo, h, v, w
 
 
@@ -66,7 +67,7 @@ def read_fcidump(filename: TextIO) -> Tuple[float, np.ndarray, np.ndarray]:
         if not line.startswith(" &FCI NORB="):
             raise IOError("Error in FCIDUMP file header")
         # read nbasis from header
-        nbasis = int(line[11:line.find(",")])
+        nbasis = int(line[11 : line.find(",")])
         # skip rest of header
         for line in f:
             field = line.split()[0]

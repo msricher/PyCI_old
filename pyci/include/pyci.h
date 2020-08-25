@@ -134,7 +134,11 @@ double compute_enpt2(const Ham &, const FullCIWfn &, const double *, const doubl
 
 double compute_enpt2(const Ham &, const GenCIWfn &, const double *, const double, const double);
 
-/* Hamiltonian classes. */
+/*
+Section: Hamiltonian classes
+
+Notes: We will subclass
+*/
 
 struct Ham {
 public:
@@ -208,7 +212,7 @@ protected:
 public:
     OneSpinWfn(const OneSpinWfn &);
 
-    OneSpinWfn(const OneSpinWfn &&) noexcept;
+    OneSpinWfn(OneSpinWfn &&) noexcept;
 
     OneSpinWfn(const std::string &);
 
@@ -275,7 +279,7 @@ protected:
 public:
     TwoSpinWfn(const TwoSpinWfn &);
 
-    TwoSpinWfn(const TwoSpinWfn &&) noexcept;
+    TwoSpinWfn(TwoSpinWfn &&) noexcept;
 
     TwoSpinWfn(const std::string &);
 
@@ -342,7 +346,7 @@ protected:
 public:
     DOCIWfn(const DOCIWfn &);
 
-    DOCIWfn(const DOCIWfn &&) noexcept;
+    DOCIWfn(DOCIWfn &&) noexcept;
 
     DOCIWfn(const std::string &);
 
@@ -375,7 +379,7 @@ protected:
 public:
     FullCIWfn(const FullCIWfn &);
 
-    FullCIWfn(const FullCIWfn &&) noexcept;
+    FullCIWfn(FullCIWfn &&) noexcept;
 
     FullCIWfn(const DOCIWfn &);
 
@@ -410,7 +414,7 @@ protected:
 public:
     GenCIWfn(const GenCIWfn &);
 
-    GenCIWfn(const GenCIWfn &&) noexcept;
+    GenCIWfn(GenCIWfn &&) noexcept;
 
     GenCIWfn(const DOCIWfn &);
 

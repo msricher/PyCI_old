@@ -13,19 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with PyCI. If not, see <http://www.gnu.org/licenses/>. */
 
-#include <algorithm>
-#include <cstring>
-#include <fstream>
-#include <ios>
 #include <stdexcept>
-#include <utility>
-#include <vector>
-
-#include <omp.h>
-
-#include <parallel_hashmap/phmap.h>
-
-#include <SpookyV2.h>
+#include <string>
 
 #include <pyci.h>
 
@@ -34,7 +23,7 @@ namespace pyci {
 FullCIWfn::FullCIWfn(const FullCIWfn &wfn) : TwoSpinWfn(wfn) {
 }
 
-FullCIWfn::FullCIWfn(const FullCIWfn &&wfn) noexcept : TwoSpinWfn(wfn) {
+FullCIWfn::FullCIWfn(FullCIWfn &&wfn) noexcept : TwoSpinWfn(wfn) {
 }
 
 FullCIWfn::FullCIWfn(const DOCIWfn &wfn) : TwoSpinWfn(wfn.nbasis, wfn.nocc_up, wfn.nocc_dn) {

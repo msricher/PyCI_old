@@ -13,20 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with PyCI. If not, see <http://www.gnu.org/licenses/>. */
 
-#include <algorithm>
-#include <cstring>
-#include <fstream>
-#include <ios>
 #include <stdexcept>
 #include <string>
-#include <utility>
-#include <vector>
-
-#include <omp.h>
-
-#include <parallel_hashmap/phmap.h>
-
-#include <SpookyV2.h>
 
 #include <pyci.h>
 
@@ -35,7 +23,7 @@ namespace pyci {
 GenCIWfn::GenCIWfn(const GenCIWfn &wfn) : OneSpinWfn(wfn) {
 }
 
-GenCIWfn::GenCIWfn(const GenCIWfn &&wfn) noexcept : OneSpinWfn(wfn) {
+GenCIWfn::GenCIWfn(GenCIWfn &&wfn) noexcept : OneSpinWfn(wfn) {
 }
 
 GenCIWfn::GenCIWfn(const DOCIWfn &wfn) : GenCIWfn(FullCIWfn(wfn)) {
