@@ -155,6 +155,9 @@ using HashMap = phmap::flat_hash_map<KeyType, ValueType>;
 template<typename Scalar>
 using Array = pybind11::array_t<Scalar, pybind11::array::c_style | pybind11::array::forcecast>;
 
+template<typename Scalar>
+using FArray = pybind11::array_t<Scalar, pybind11::array::f_style | pybind11::array::forcecast>;
+
 /* Forward-declare classes. */
 
 struct Ham;
@@ -165,6 +168,10 @@ struct DOCIWfn;
 struct FullCIWfn;
 struct GenCIWfn;
 struct SparseOp;
+struct FanCI;
+struct APIG;
+struct pCCD;
+struct pCCDS;
 
 /* Number of threads global variable. */
 
@@ -223,6 +230,12 @@ long add_hci(const Ham &, WfnType &, const double *, const double, const long = 
 template<class WfnType>
 double compute_enpt2(const Ham &, const WfnType &, const double *, const double, const double,
                      const long = -1);
+
+double permanent(const double *, const long);
+
+double permanent(const double *, const long *, const long, const long);
+
+double permanent(const double *, const long *, const long *, const long, const long);
 
 /* Free Python interface functions. */
 
@@ -648,6 +661,73 @@ private:
     void add_row(const Ham &, const FullCIWfn &, const long, ulong *, long *, long *);
 
     void add_row(const Ham &, const GenCIWfn &, const long, ulong *, long *, long *);
+};
+
+/* FanCI base class. */
+
+struct FanCI {
+
+public:
+    long nbasis;
+    long nocc_up;
+    long nocc_dn;
+    long nparam;
+    long nequation;
+    long nproj;
+    long nconn;
+    SparseOp op;
+
+    FanCI(const FanCI &);
+
+    FanCI(FanCI &&) noexcept;
+
+    FanCI(const Ham &, const DOCIWfn &, const long, const long, const long);
+
+    FanCI(const Ham &, const FullCIWfn &, const long, const long, const long);
+};
+
+/* APIG class. */
+
+struct APIG : public FanCI {
+public:
+    using FanCI::nbasis;
+    using FanCI::nconn;
+    using FanCI::nequation;
+    using FanCI::nocc_dn;
+    using FanCI::nocc_up;
+    using FanCI::nparam;
+    using FanCI::nproj;
+    using FanCI::op;
+
+    static long compute_nparam(const long, const long, const long);
+
+    std::vector<long> occs;
+
+    APIG(const APIG &);
+
+    APIG(APIG &&) noexcept;
+
+    APIG(const Ham &, const DOCIWfn &, const long = -1);
+
+    void initial_guess(double *) const;
+
+    void compute_overlap(const double *, double *, const long, const long) const;
+
+    void compute_overlap_deriv(const double *, double *, const long, const long) const;
+
+    void compute_cost(const double *, double *) const;
+
+    void compute_cost_deriv(const double *, double *) const;
+
+    Array<double> py_initial_guess(void) const;
+
+    Array<double> py_compute_overlap(Array<double>, long, long) const;
+
+    FArray<double> py_compute_overlap_deriv(Array<double>, long, long) const;
+
+    Array<double> py_compute_cost(Array<double>) const;
+
+    FArray<double> py_compute_cost_deriv(Array<double>) const;
 };
 
 } // namespace pyci

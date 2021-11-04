@@ -22,6 +22,8 @@ from .pyci import doci_wfn, fullci_wfn, genci_wfn, sparse_op
 from .pyci import get_num_threads, set_num_threads, popcnt, ctz
 from .pyci import compute_overlap, compute_rdms, add_hci, compute_enpt2
 
+from .pyci import fanci, apig
+
 from .utility import make_senzero_integrals, reduce_senzero_integrals, spinize_rdms
 
 from .excitation_ci import add_excitations
@@ -56,6 +58,8 @@ __all__ = [
     "add_excitations",
     "add_seniorities",
     "add_gkci",
+    "fanci",
+    "apig",
 ]
 
 

@@ -1083,6 +1083,70 @@ n : int
 sparse_op.def("squeeze", &SparseOp::squeeze, "Free any unused memory allocated to this object.");
 
 /*
+Section: FanCI base class
+*/
+
+py::class_<FanCI> fanci(m, "fanci");
+
+fanci.doc() = R"""(
+FanCI base class.
+)""";
+
+fanci.def_readonly("nbasis", &FanCI::nbasis, R"""(
+)""");
+
+fanci.def_readonly("nocc_up", &FanCI::nocc_up, R"""(
+)""");
+
+fanci.def_readonly("nocc_dn", &FanCI::nocc_dn, R"""(
+)""");
+
+fanci.def_readonly("nparam", &FanCI::nparam, R"""(
+)""");
+
+fanci.def_readonly("nequation", &FanCI::nequation, R"""(
+)""");
+
+fanci.def_readonly("nproj", &FanCI::nproj, R"""(
+)""");
+
+fanci.def_readonly("nconn", &FanCI::nconn, R"""(
+)""");
+
+/*
+Section: APIG class
+*/
+
+py::class_<APIG, FanCI> apig(m, "apig");
+
+apig.doc() = R"""(
+APIG FanCI class.
+)""";
+
+apig.def(py::init<const Ham &, const DOCIWfn &, const long>(), R"""(
+)""",
+         py::arg("ham"), py::arg("wfn"), py::arg("nproj") = -1);
+
+apig.def("initial_guess", &APIG::py_initial_guess, R"""(
+)""");
+
+apig.def("compute_overlap", &APIG::py_compute_overlap, R"""(
+)""",
+         py::arg("x"), py::arg("start") = -1, py::arg("end") = -1);
+
+apig.def("compute_overlap_deriv", &APIG::py_compute_overlap_deriv, R"""(
+)""",
+         py::arg("x"), py::arg("start") = -1, py::arg("end") = -1);
+
+apig.def("compute_cost", &APIG::py_compute_cost, R"""(
+)""",
+         py::arg("x"));
+
+apig.def("compute_cost_deriv", &APIG::py_compute_cost_deriv, R"""(
+)""",
+         py::arg("x"));
+
+/*
 Section: Free functions
 */
 

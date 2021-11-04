@@ -17,9 +17,13 @@ r"""PyCI test module."""
 
 from os import path
 
+from .derivcheck import diff_ridders, assert_deriv
+
 
 __all__ = [
     "datafile",
+    "diff_ridders",
+    "assert_deriv",
 ]
 
 
