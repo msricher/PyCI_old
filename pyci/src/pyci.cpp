@@ -26,6 +26,7 @@
 #include "hci.cpp"
 #include "onespinwfn.cpp"
 #include "overlap.cpp"
+#include "pccd.cpp"
 #include "permanent.cpp"
 #include "rdm.cpp"
 #include "sparseop.cpp"

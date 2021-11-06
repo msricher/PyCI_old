@@ -1147,6 +1147,39 @@ apig.def("compute_cost_deriv", &APIG::py_compute_cost_deriv, R"""(
          py::arg("x"));
 
 /*
+Section: pCCD class
+*/
+
+py::class_<pCCD, FanCI> pccd(m, "pccd");
+
+pccd.doc() = R"""(
+pCCD FanCI class.
+)""";
+
+pccd.def(py::init<const Ham &, const DOCIWfn &, const long>(), R"""(
+)""",
+         py::arg("ham"), py::arg("wfn"), py::arg("nproj") = -1);
+
+pccd.def("initial_guess", &pCCD::py_initial_guess, R"""(
+)""");
+
+pccd.def("compute_overlap", &pCCD::py_compute_overlap, R"""(
+)""",
+         py::arg("x"), py::arg("start") = -1, py::arg("end") = -1);
+
+pccd.def("compute_overlap_deriv", &pCCD::py_compute_overlap_deriv, R"""(
+)""",
+         py::arg("x"), py::arg("start") = -1, py::arg("end") = -1);
+
+pccd.def("compute_cost", &pCCD::py_compute_cost, R"""(
+)""",
+         py::arg("x"));
+
+pccd.def("compute_cost_deriv", &pCCD::py_compute_cost_deriv, R"""(
+)""",
+         py::arg("x"));
+
+/*
 Section: Free functions
 */
 

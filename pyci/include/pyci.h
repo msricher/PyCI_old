@@ -730,4 +730,48 @@ public:
     FArray<double> py_compute_cost_deriv(Array<double>) const;
 };
 
+/* pCCD class. */
+
+struct pCCD : public FanCI {
+public:
+    using FanCI::nbasis;
+    using FanCI::nconn;
+    using FanCI::nequation;
+    using FanCI::nocc_dn;
+    using FanCI::nocc_up;
+    using FanCI::nparam;
+    using FanCI::nproj;
+    using FanCI::op;
+
+    static long compute_nparam(const long, const long, const long);
+
+    std::vector<long> occs;
+
+    pCCD(const pCCD &);
+
+    pCCD(pCCD &&) noexcept;
+
+    pCCD(const Ham &, const DOCIWfn &, const long = -1);
+
+    void initial_guess(double *) const;
+
+    void compute_overlap(const double *, double *, const long, const long) const;
+
+    void compute_overlap_deriv(const double *, double *, const long, const long) const;
+
+    void compute_cost(const double *, double *) const;
+
+    void compute_cost_deriv(const double *, double *) const;
+
+    Array<double> py_initial_guess(void) const;
+
+    Array<double> py_compute_overlap(Array<double>, long, long) const;
+
+    FArray<double> py_compute_overlap_deriv(Array<double>, long, long) const;
+
+    Array<double> py_compute_cost(Array<double>) const;
+
+    FArray<double> py_compute_cost_deriv(Array<double>) const;
+};
+
 } // namespace pyci
