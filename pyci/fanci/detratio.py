@@ -22,7 +22,11 @@ __all___ = [
 
 class DetRatio(FanCI):
     r"""
-    Determinant ratio FanCI class.
+    Determinant ratio FanCI class. This wave function has the form
+
+    .. math::
+
+        \left| \right>
 
     """
 
